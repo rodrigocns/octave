@@ -94,7 +94,6 @@ if (config_input_data == 1)
   printf("3.");
   ## ler coordenadas x,y do gazepoint (está em fracao da tela, precisa corrigir para pixels)
   gaze(:,1:2) = xlsread (xlsx_file_name, tipo_name, "D2:E9000" );
-  gaze(
   printf("4.");
   printf("concluído!");toc();
 endif
@@ -136,7 +135,7 @@ if (config_convhull == 1)
     [H,area(t,1)] = convhull (atom_xy(:,1,t),atom_xy(:,2,t)); #se deixar [H,v]= ..., calcula volume em V
   endfor
   area(:,2) = atom_count./area(:,1);   #densidade de átomos na área do convexhull
-  if ( isempty( strfind(config_xls_write,"1") ) != 1)
+  if ( isempty( strfind(config_xls_write,"1") ) != true)
     printf("desativei esta funcao xlswrite");
     #xlswrite (strcat("compiladoPorSubjects_",tipo(config_tipo),".xlsx"), area, num2str(subject), "AD2");   #registrar area do convexhull e densidade de átomos nessa área
   endif
@@ -167,7 +166,7 @@ if (config_gaze_atom_dist == 1)
     endif
   endfor
   printf("...gaze dist ok.");
-  if ( isempty( strfind(config_xls_write,"2") ) != 2)
+  if ( isempty( strfind(config_xls_write,"2") ) != true)
     xlswrite (xlsx_file_name, [gaze_cvs_px,gaze_status,atom_closer_to_gaze], num2str(subject), "AV2");   #registrar area do convexhull e densidade de átomos nessa área
   endif
   printf("...e impresso.");
