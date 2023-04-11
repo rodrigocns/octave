@@ -1,8 +1,12 @@
 pkg load io
 clear
-sheets_filename = 'iRT gsheets.xlsx';
-csv_output_filename = 'iRT_data.csv';
+input_filename = 'iRT gsheets';
+output_filename = 'iRT_data'; %sem o formato de arquivo
 colunas = [8,9,10,11,12,13]; %colunas para descomprimir
+
+%Script lê arquivo 'input_filename' e cria um arquivo csv 'output_filename'
+% expandindo de uma resolução por linha para um ponto de dado por linha.
+
 %{
 com o nome do arquivo excel de dados comprimidos vindo da planilha online e
 o array de índices das colunas % serem descomprimidas:
@@ -18,17 +22,18 @@ endfunction
 
 %Copiar dados da planilha============================
 tic;printf("Lendo planilha...");
-[sheets_num,sheets_txt,sheets_raw] = xlsread(sheets_filename,1);
+[sheets_num,sheets_txt,sheets_raw] = xlsread(strcat(input_filename,".xlsx"),1);
 printf("DONE! ");
 toc;
 
 %Extraindo dados ===================================
 tic;printf("Descomprimindo dados...");
-%para cada linha de dados (2a até a ultima)
-%for linha = 2:size(sheets_raw,1)
 header={"sessionID", "task_id", "epoch", "duration", "Qi", "Qj", "Qk", "Qr"};
 full_matrix = header;
-for linha = 2:2
+
+%para cada linha de dados (2a até a ultima)
+%for linha = 2:2
+for linha = 2:size(sheets_raw,1)
   numeric_matrix = [];
   %para cada coluna de dados compact.
   for col_id = 1:size(colunas,2);
@@ -48,15 +53,24 @@ for linha = 2:2
 endfor
 printf("DONE! ");toc;
 
+
 tic;printf("Salvando dados...");
+
 % Write to CSV file
-cell2csv(csv_output_filename, full_matrix);
+%cell2csv(strcat(output_filename,".csv"), full_matrix);
+%printf(".csv, ");
+
+% Write to XLSX file
+%oct2xls(strcat(output_filename,".xlsx"), full_matrix);
+xlswrite (strcat(output_filename,".xlsx"), full_matrix);
+printf(".xlsx, ");
+
 printf("DONE! ");toc;
 
 %Retrieving ============================
 #{
 tic;printf("Carregando dados...");
-cell_mat_new = csv2cell(csv_output_filename);
+cell_mat_new = csv2cell(strcat(output_filename,".csv"));
 
 printf("DONE! ");toc;
 #}
