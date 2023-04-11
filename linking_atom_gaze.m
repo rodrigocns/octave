@@ -46,10 +46,10 @@ endfunction
 ## ===CONFIGS===
 tipo = ["C","G","I"];
 config_tipo =           2; #1:C, 2:G, 3:I
-config_input_data =     1; #1 se vai limpar dados e ler dos .xlsx
-config_pre_calc =       1; #1 se for realizar outros calculos (importantes para o resto)
+config_input_data =     0; #1 se vai limpar dados e ler dos .xlsx
+config_pre_calc =       0; #1 se for realizar outros calculos (importantes para o resto)
 config_convhull =       0; #1 para calcular a convexhull da projeção xy dos atomos em cada tempo
-config_gaze_atom_dist = 1; #1 para calcular matriz de distancia entre gazepoint e atomos interativos.
+config_gaze_atom_dist = 0; #1 para calcular matriz de distancia entre gazepoint e atomos interativos.
 config_dist_integral =  1; #1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_xls_write =  "0"; #1: convexhull, 2:gazepoint
 config_graficos =   "0"; #1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais próximo
@@ -159,7 +159,6 @@ if (config_gaze_atom_dist == 1)
     elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
       gaze_status(t,1) = 1;
       [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_ref_atom_dist(t,:));
-#      atom_closer_to_gaze(t,1:2) = [1,0];
     else
       gaze_status(t,1) = 0;
       atom_closer_to_gaze(t,1:2) = [0,0];
@@ -176,22 +175,37 @@ endif
 ## calcular alfa de cada atomo baseado no tempo de proximidade do gaze
 if (config_dist_integral == 1)
   atom_gaze_alfa = zeros (atom_count,1);
+  dist = zeros (size (Q,1),2,atom_count);
+  dist_exp = zeros (size(Q,1), atom_count);
   for a=1 : atom_count
     ##primeiro atomos da referencia : integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*config_gauss_wdt^2)) dt)
     for t=1 : size (Q,1)
-      dist(t,1:2,a) = [ (gaze_ref_px(t,1) - ref_atom_xy_px(a,1)).^2 , (gaze_ref_px(t,2) - ref_atom_xy_px(a,2)).^2 ];
+        dist(t,1:2,a) = [ (gaze_ref_px(t,1) - ref_atom_xy_px(a,1)).^2 , (gaze_ref_px(t,2) - ref_atom_xy_px(a,2)).^2 ];
+#      if (gaze_status(t)==1) #se gaze esta na ref
+#        dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) );
+#       dist_exp = exp (-(dist(:,1,a)+dist(:,2,a)) );
+#      endif
     endfor
   endfor
   for c=1:10
     for a=1 : atom_count
       config_gauss_wdt = c*20;
-      atom_gaze_alfa(a) = sum (exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ));
+      dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
+      atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==1) );
     endfor
     plot(atom_gaze_alfa);
     xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], tipo_name, strcat (char (c+64), "2") );
   endfor
 endif
 
+if (2==1)
+  for a=1 : atom_count
+    config_gauss_wdt = 10;
+    dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
+    atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==1) );
+  endfor
+  xlswrite ("lista_alfas_atomos2.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], tipo_name, strcat ("K", "2") );
+endif
 
 ## graficos
 if ( isempty( strfind(config_graficos,"1") ) != 1) #scatter 2D da molecula sem rotacao
