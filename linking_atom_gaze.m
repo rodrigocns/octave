@@ -2,17 +2,30 @@ pkg load io
 pkg load quaternion
 #http://jmol.sourceforge.net/demo/jssample0.html
 
-function R = rot_matrix (qr,qi,qj,qk, s = 1) #no .xlsx está qi,qj,qk,qr
+#{
+ v0.8 
+ De volta ao octave, agora em 2023. 
+ Vou otimizar as coisas para a publicação no JoVE.
+ Leitura das coords atomicas agora é num arquivo .xyz (bem mais rapido que .xlsx)
+ Troca tipo* por task*
+ Dados da tarefa (task) agora estão dentro do arquivo de função get_task_data.m
+ 
+#}
+
+#rot_matrix retorna matriz de rotação a partir de um quaternio 
+function R = rot_matrix (qr,qi,qj,qk, s = 1) #no .xlsx está como qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)]; 
 endfunction
 
+#transforma axis-angle em quaternio|| in:(x,y,z,angle) || out:[qw,qx,qy,qz] (qw is real part)
 function Q = axangle2quat (x,y,z,angle) #Q = [qw,qx,qy,qz]. angle in degrees
   Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
 endfunction
 
-function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)  #codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+#codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)  
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  #strvcat extrai a string de um cell array
       case "H"
@@ -34,8 +47,8 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)  #codifi
     endswitch
   endfor
 endfunction
-
-function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz) #normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0
+#normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0 (centro da boundingbox do jmol
+function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz) 
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
   correcao_centro = (max_xyz+min_xyz)/2;
@@ -44,15 +57,15 @@ endfunction
 
 
 ## ===CONFIGS===
-tipo = ["C","G","I"];
-config_tipo =           2; #1:C, 2:G, 3:I
+task = ["C","G","I"]; #identifiers of each task. Rename accordingly.
+config_task =           2; #Refer to line above. Usado para obter dados referentes a task
 config_input_data =     1; #1 para ler os .xlsx de input
 config_pre_calc =       1; #1 se for realizar outros calculos (importantes para o resto)
 config_convhull =       0; #1 para calcular a convexhull da projeção xy dos atomos em cada tempo
 config_gaze_atom_dist = 1; #1 para calcular matriz de distancia entre gazepoint e atomos interativos.
 config_dist_integral =  1; #1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_dist_integral_temporal =  1; #1 para calcular coluna de alfa/transparencia de cada atomo menos visto
-config_xls_write =  "0"; #1: convexhull, 2:gazepoint
+config_xls_write =  "0"; #1: convexhull, 2:gazepoint. Escrever arquivos.
 config_graficos =   "0"; #1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais próximo
 subject =  63; #1~62
 config_screen_size = [1360,720];
@@ -60,45 +73,32 @@ config_ref_center_px = [211,376];
 config_cvs_center_px = [615,379];
 config_fator_px = 23.699; #razao entre fracao da tela e posicao em px (calculo em User 1_all_gaze.xlsx > "px to x coord")
 config_gauss_wdt = 0.922; #desvio padrao do config_fator_px
-#xlsx_file_name = strcat ("compiladoPorSubjects_", tipo(config_tipo), ".xlsx");
+#xlsx_file_name = strcat ("compiladoPorSubjects_", task(config_task), ".xlsx");
 xlsx_file_name = strcat ("tabela_de_dados_opengaze.xlsx");
-xyz_file_name = "convexhull/xyz coords.xlsx";
-## ===PREENCHER===
-if (config_tipo == 1 ) #nome do modelo molecular
-  model_name = 'pseudobatracotoxin_molecule'; #caprolactama, pseudobatracotoxin_molecule
-  tipo_name = 'cor';
-  config_ref_q = [0.6873,  -0.4903,  -0.2825,  -0.4554]; #quaternios para a referencia
-elseif (config_tipo == 2)
-  model_name = 'pseudobatracotoxin_molecule';
-  tipo_name = 'cinza';
-  config_ref_q = [0.6873,  -0.4903,  -0.2825,  -0.4554]; #quaternios para a referencia
-elseif (config_tipo == 3)
-  model_name = 'caprolactama';
-  tipo_name = 'intro';
-  config_ref_q = [0.5183,   0.5105,   0.4575,  -0.5105]; #quaternios para a referencia
-else
-  error ("ERRO! Tipo de teste não reconhecido!");
-endif
-## ==============
+#xyz_file_name = "convexhull/xyz coords.xlsx";
+[config_model_name,task_name,config_ref_quat] = get_task_data (config_task);
+xyz_file_name = strcat ("modelos/", config_model_name, ".xyz");
 
-if (config_input_data == 1) #Data input 
-  clear -x config* subject *name 
-  tic();printf("Lendo arquivos xlsx... ");
-  #pegar contagem, lista de coordenadas xyz e tipo de cada átomo do modelo.
-  #https://octave.sourceforge.io/octave/function/textread.html para ter input direto de um .xyz
-  atom_count = xlsread (xyz_file_name, model_name, 'A1:A1');
+## ==============
+## ===== Data Input =====
+
+if (config_input_data == 1)
+  #limpar todas variaveis exceto as abaixo
+  clear -x config* subject *name
+  tic();printf("Lendo arquivos xlsx... "); 
+  #pegar contagem, elemento e coordenadas xyz de cada átomo do arquivo .xyz
+  [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   printf("1.");
-  [atom_xyz, atom_elem] = xlsread (xyz_file_name, model_name, strcat('A3:D',num2str(atom_count+2) ));
-  printf("2.");
   #gerar vetor de cores para os atomos
   atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem); 
+  printf("2.");
   # ler quaternios do .xlsx [x y z theta]
-  Q(:,1:4) = xlsread (xlsx_file_name, tipo_name, "AN2:AQ9000" );
+  Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
   printf("3.");
   # ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
-  gaze(:,1:2) = xlsread (xlsx_file_name, tipo_name, "D2:E9000" );
+  gaze(:,1:2) = xlsread (xlsx_file_name, task_name, "D2:E9000" );
   printf("4.");
-  printf("concluído!");toc();
+  printf("concluído!");toc();  #Time spent ~ 10 s
 endif
 
 if (config_pre_calc == 1)
@@ -115,23 +115,22 @@ if (config_pre_calc == 1)
     endfor
   endfor
   for a=1:atom_count #gerar matriz de atomos do modelo referencia
-    ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_q(1),config_ref_q(2),config_ref_q(3),config_ref_q(4))*atom_xyz(a,1:3)')' ; 
+    ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_quat(1),config_ref_quat(2),config_ref_quat(3),config_ref_quat(4))*atom_xyz(a,1:3)')' ; 
   endfor
 
-  ##gaze coords. em pixel na tela (gaze_px), partindo do centro da referencia 
+  ##Gerar gaze coords. em pixel na tela (gaze_px), partindo do centro da referencia 
   ##(gaze_ref_px) e do centro do canvas (gaze_cvs_px)
   gaze_px = gaze(:,1:2).*[config_screen_size];
   gaze_ref_px = gaze_px - config_ref_center_px;
   gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px; 
 
-  
   ## gerar projeção xy dos átomos rotacionados pelas matrizes no tempo
   atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); #atom_xy(atomos, xy, frame) {centralizado canvas}
   atom_xy_px(:,:,:) = config_fator_px*atom_xy(:,:,:); #obter pixels das coordenadas da projecao xy dos atomos {centralizado no centro de rot.}
-  ref_atom_xy(:,1:2) = ref_atom_xyz(:,1:2); #ref_atom_xy(atomo,xy) {centralizado na ref}
-  ref_atom_xy_px(:,1:2) = ref_atom_xy(:,1:2)*config_fator_px; #obter pixel xy
+  #ref_atom_xy(:,1:2) = ref_atom_xyz(:,1:2); #ref_atom_xy(atomo,xy) {centralizado na ref}
+  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_fator_px; #obter pixel xy
 endif
-  
+
 ## gerar vetor convex hull no tempo
 if (config_convhull == 1)
   for t = 1:size(Q,1) #aplicar convex hull em cada frame.
@@ -140,7 +139,7 @@ if (config_convhull == 1)
   area(:,2) = atom_count./area(:,1);   #densidade de átomos na área do convexhull
   if ( isempty( strfind(config_xls_write,"1") ) != true)
     printf("desativei esta funcao xlswrite");
-    #xlswrite (strcat("compiladoPorSubjects_",tipo(config_tipo),".xlsx"), area, num2str(subject), "AD2");   #registrar area do convexhull e densidade de átomos nessa área
+    #xlswrite (strcat("compiladoPorSubjects_",task(config_task),".xlsx"), area, num2str(subject), "AD2");   #registrar area do convexhull e densidade de átomos nessa área
   endif
   printf("...convhull ok.");
 endif
@@ -155,7 +154,7 @@ if (config_gaze_atom_dist == 1)
       gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
     endfor
   endfor
-  for t=1 : size(Q,1) #varredura do tempo para preencher aonda está o gaze e o átomo mais próximo do gaze
+  for t=1 : size(Q,1) #varredura do tempo para preencher aonde está o gaze e o átomo mais próximo do gaze
     if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) #marca em qual parte está o gaze da pessoa
       gaze_status(t,1) = 2;
       [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
@@ -172,7 +171,7 @@ if (config_gaze_atom_dist == 1)
     xlswrite (xlsx_file_name, [gaze_cvs_px,gaze_status,atom_closer_to_gaze], num2str(subject), "AV2");   #registrar area do convexhull e densidade de átomos nessa área
   endif
   printf("...e impresso.");
-printf("calculos concluídos! ");toc();
+printf("calculos concluídos! ");toc(); #Time spent (gaze dist)~ 3 s
 endif
 
 ## calcular gradiende de transparência da molecula baseado no tempo de proximidade do gaze
@@ -197,10 +196,10 @@ if (config_dist_integral == 1)
       atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==2) );
     endfor
     plot(atom_gaze_alfa);
-    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",tipo_name), strcat (char (c+64), "2") );
-    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], strcat(tipo_name), strcat (char (c+64), "2") );
+    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",task_name), strcat (char (c+64), "2") );
+    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], strcat(task_name), strcat (char (c+64), "2") );
   endfor
-  printf("concluido!");toc();
+  printf("concluido!");toc(); #Time spent (gaze dist)~ 60 s
 endif
 
 ## calcular gradiende de transparência da molecula VARIANDO NO TEMPO 
@@ -231,10 +230,10 @@ if (config_dist_integral_temporal == 1)
         #INSERIR NORMALIZACAO AQUI
     endfor
     plot(atom_gaze_alfa(end,:));
-    xlswrite ("teste.xlsx", [ref_atom_gaze_alfa], strcat("ref_",tipo_name,"_",num2str (config_gauss_wdt),"_RAW"), "E2" );
-    xlswrite ("teste.xlsx", [Q,atom_gaze_alfa], strcat(tipo_name,"_",num2str (config_gauss_wdt),"_RAW"), "A2" );
-#    xlswrite ("lista_alfas_atomos.xlsx", [ref_atom_gaze_alfa], strcat("ref_",tipo_name,"_",num2str (config_gauss_wdt)), "E2" );
-#    xlswrite ("lista_alfas_atomos.xlsx", [Q,atom_gaze_alfa], strcat(tipo_name,"_",num2str (config_gauss_wdt)), "A2" );
+    xlswrite ("teste.xlsx", [ref_atom_gaze_alfa], strcat("ref_",task_name,"_",num2str (config_gauss_wdt),"_RAW"), "E2" );
+    xlswrite ("teste.xlsx", [Q,atom_gaze_alfa], strcat(task_name,"_",num2str (config_gauss_wdt),"_RAW"), "A2" );
+#    xlswrite ("lista_alfas_atomos.xlsx", [ref_atom_gaze_alfa], strcat("ref_",task_name,"_",num2str (config_gauss_wdt)), "E2" );
+#    xlswrite ("lista_alfas_atomos.xlsx", [Q,atom_gaze_alfa], strcat(task_name,"_",num2str (config_gauss_wdt)), "A2" );
   endfor
   printf("concluido!");toc();
 endif
@@ -247,8 +246,8 @@ if (2==1) #testes de sigma
     dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
     atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==1) );
   endfor
-  xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",tipo_name), strcat ("K", "2") );
-  xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], tipo_name, strcat ("K", "2") );
+  xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",task_name), strcat ("K", "2") );
+  xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], task_name, strcat ("K", "2") );
 endif
 
 ## graficos
