@@ -35,7 +35,7 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)  #codifi
   endfor
 endfunction
 
-function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz) #normaliza coordenadas de amtomos da matriz para o centro de rotacao ser 0,0,0
+function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz) #normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
   correcao_centro = (max_xyz+min_xyz)/2;
@@ -46,18 +46,19 @@ endfunction
 ## ===CONFIGS===
 tipo = ["C","G","I"];
 config_tipo =           2; #1:C, 2:G, 3:I
-config_input_data =     1; #1 se vai limpar dados e ler dos .xlsx
+config_input_data =     1; #1 para ler os .xlsx de input
 config_pre_calc =       1; #1 se for realizar outros calculos (importantes para o resto)
 config_convhull =       0; #1 para calcular a convexhull da projeção xy dos atomos em cada tempo
 config_gaze_atom_dist = 1; #1 para calcular matriz de distancia entre gazepoint e atomos interativos.
 config_dist_integral =  1; #1 para calcular coluna de alfa/transparencia de cada atomo menos visto
+config_dist_integral_temporal =  1; #1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_xls_write =  "0"; #1: convexhull, 2:gazepoint
 config_graficos =   "0"; #1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais próximo
 subject =  63; #1~62
 config_screen_size = [1360,720];
 config_ref_center_px = [211,376];
 config_cvs_center_px = [615,379];
-config_fator_px = 23.699; #razao entre fracao da tela e posicao em px (calc. no xlsx)
+config_fator_px = 23.699; #razao entre fracao da tela e posicao em px (calculo em User 1_all_gaze.xlsx > "px to x coord")
 config_gauss_wdt = 0.922; #desvio padrao do config_fator_px
 #xlsx_file_name = strcat ("compiladoPorSubjects_", tipo(config_tipo), ".xlsx");
 xlsx_file_name = strcat ("tabela_de_dados_opengaze.xlsx");
@@ -80,19 +81,21 @@ else
 endif
 ## ==============
 
-if (config_input_data == 1)
+if (config_input_data == 1) #Data input 
   clear -x config* subject *name 
   tic();printf("Lendo arquivos xlsx... ");
-  ##pegar contagem, lista de coordenadas xyz e tipo de cada átomo do modelo.
+  #pegar contagem, lista de coordenadas xyz e tipo de cada átomo do modelo.
+  #https://octave.sourceforge.io/octave/function/textread.html para ter input direto de um .xyz
   atom_count = xlsread (xyz_file_name, model_name, 'A1:A1');
   printf("1.");
   [atom_xyz, atom_elem] = xlsread (xyz_file_name, model_name, strcat('A3:D',num2str(atom_count+2) ));
   printf("2.");
-  atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem); #gerar vetor de cores para os atomos
-  ## ler quaternios do .xlsx [x y z theta]
+  #gerar vetor de cores para os atomos
+  atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem); 
+  # ler quaternios do .xlsx [x y z theta]
   Q(:,1:4) = xlsread (xlsx_file_name, tipo_name, "AN2:AQ9000" );
   printf("3.");
-  ## ler coordenadas x,y do gazepoint (está em fracao da tela, precisa corrigir para pixels)
+  # ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
   gaze(:,1:2) = xlsread (xlsx_file_name, tipo_name, "D2:E9000" );
   printf("4.");
   printf("concluído!");toc();
@@ -103,12 +106,12 @@ if (config_pre_calc == 1)
   ##encontrar centro de rotação (boundingbox do jmol)
   atom_xyz(:,1:3) = normalize_jmol_rot_center (atom_xyz); #centralizado aqui!
   ## gerar matriz de rotação pelo tempo com base nas coordenadas Q4 das rotações registradas
-  for t = 1: size (Q,1) #para cada frame\tempo
-    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));  #criando a matriz de rotação
+  for t = 1: size (Q,1) #criando matriz de rotação para cada frame
+    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));  
     #rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   #teste de rotação em 90graus
     for a=1:atom_count     #para cada atomo, aplicar a matriz de rotação
       #atom_xyzRot(a,1:3,t) = atom_xyz(a,1:3)*rot_vector(1:3,1:3,t); #1x3 * 3x3 = 1x3 (ESSE INVERTE A ROTACAO)
-      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ; #3x3 * 3x1 = 3x1 ESSE E O CERTO) {rotacoes centralizadas no centro de rotacoes}
+      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ; #3x3 * 3x1 = 3x1 (ESSE E O CERTO) {rotacoes centralizadas no centro de rotacoes}
     endfor
   endfor
   for a=1:atom_count #gerar matriz de atomos do modelo referencia
@@ -172,7 +175,7 @@ if (config_gaze_atom_dist == 1)
 printf("calculos concluídos! ");toc();
 endif
 
-## calcular alfa de cada atomo baseado no tempo de proximidade do gaze
+## calcular gradiende de transparência da molecula baseado no tempo de proximidade do gaze
 if (config_dist_integral == 1)
   printf("Cruzando dados do gaze com a posicao dos atomos...");tic();
   atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1);
@@ -189,18 +192,54 @@ if (config_dist_integral == 1)
     for a=1 : atom_count
       config_gauss_wdt = c*20;
       ref_dist_exp = exp (-(ref_dist(:,1,a)+ref_dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
-      dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
-      ref_atom_gaze_alfa(a) = sum(ref_dist_exp.*(gaze_status==1) );
+      dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #idem, mas pra referencia
+      ref_atom_gaze_alfa(a) = sum(ref_dist_exp.*(gaze_status==1) ); #soma tudo
       atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==2) );
     endfor
     plot(atom_gaze_alfa);
     xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",tipo_name), strcat (char (c+64), "2") );
-    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], tipo_name, strcat (char (c+64), "2") );
+    xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], strcat(tipo_name), strcat (char (c+64), "2") );
   endfor
   printf("concluido!");toc();
 endif
 
-if (2==1)
+## calcular gradiende de transparência da molecula VARIANDO NO TEMPO 
+if (config_dist_integral_temporal == 1)
+  printf("Gerando animacao do gradiente de transparencia...");tic();
+  atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1); #(a,1)
+  ref_dist = dist = zeros (size (Q,1),2,atom_count);  #(t,1:2,a)
+  ref_dist_exp = dist_exp = zeros (size (Q,1), atom_count); #(t,a)
+  ##formula da gaussiana: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*config_gauss_wdt^2)) dt)
+  for a=1 : atom_count
+    for t=1 : size (Q,1)
+      ref_dist(t,1:2,a) = [ (gaze_ref_px(t,1) - ref_atom_xy_px(a,1)).^2 , (gaze_ref_px(t,2) - ref_atom_xy_px(a,2)).^2 ];
+      dist(t,1:2,a) = [ (gaze_cvs_px(t,1) - atom_xy_px(a,1,t)).^2 , (gaze_cvs_px(t,2) - atom_xy_px(a,2,t)).^2 ];
+    endfor
+  endfor
+#  for c=1:10
+  for c=1:1
+    for a=1 : atom_count #preenchendo valores das integrais da gaussiana
+      config_gauss_wdt = c*20; #largura da gaussiana
+      ref_dist_exp(:,a) = exp (-(ref_dist(:,1,a)+ref_dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
+      dist_exp(:,a) = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #idem, mas pra referencia
+    endfor
+    janela = round (size (Q,1)*0.1); #tamanho da janela de calculo do gradiente
+    for t=1 : size (Q,1) #montando tabela do gradiente de transparencia com janela de frames
+      s = max([t-janela, 1]); #regra pra janela(s:t)
+      ref_atom_gaze_alfa(t,1:atom_count) = sum (ref_dist_exp(s:t,1:atom_count).*(gaze_status(s:t)==1) ); #soma tudo e armazena pra um atomo
+      atom_gaze_alfa(t,1:atom_count) = sum (dist_exp(s:t,1:atom_count).*(gaze_status(s:t)==2) );
+        #INSERIR NORMALIZACAO AQUI
+    endfor
+    plot(atom_gaze_alfa(end,:));
+    xlswrite ("teste.xlsx", [ref_atom_gaze_alfa], strcat("ref_",tipo_name,"_",num2str (config_gauss_wdt),"_RAW"), "E2" );
+    xlswrite ("teste.xlsx", [Q,atom_gaze_alfa], strcat(tipo_name,"_",num2str (config_gauss_wdt),"_RAW"), "A2" );
+#    xlswrite ("lista_alfas_atomos.xlsx", [ref_atom_gaze_alfa], strcat("ref_",tipo_name,"_",num2str (config_gauss_wdt)), "E2" );
+#    xlswrite ("lista_alfas_atomos.xlsx", [Q,atom_gaze_alfa], strcat(tipo_name,"_",num2str (config_gauss_wdt)), "A2" );
+  endfor
+  printf("concluido!");toc();
+endif
+
+if (2==1) #testes de sigma
   for a=1 : atom_count
     config_gauss_wdt = 10;
     ref_dist_exp = exp (-(ref_dist(:,1,a)+ref_dist(:,2,a))/(2*config_gauss_wdt^2) ) ; #calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
