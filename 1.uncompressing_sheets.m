@@ -8,6 +8,7 @@ colunas = [8,9,10,11,12,13]; %colunas para descomprimir
 % expandindo de uma resolução por linha para um ponto de dado por linha.
 
 %{
+TODO:
 com o nome do arquivo excel de dados comprimidos vindo da planilha online e
 o array de índices das colunas % serem descomprimidas:
   [_] gerar uma aba com os dados completos de array
@@ -33,6 +34,7 @@ full_matrix = header;
 
 %para cada linha de dados (2a até a ultima)
 %for linha = 2:2
+contador = 0;
 for linha = 2:size(sheets_raw,1)
   numeric_matrix = [];
   %para cada coluna de dados compact.
@@ -50,8 +52,9 @@ for linha = 2:size(sheets_raw,1)
   cell_matrix(:,2) = {task_id};
   task_matrix = horzcat(cell_matrix,num2cell(numeric_matrix));
   full_matrix = vertcat(full_matrix,task_matrix);
+  contador++;
 endfor
-printf("DONE! ");toc;
+printf("%i linhas processadas. DONE!",contador);toc;
 
 
 tic;printf("Salvando dados...");
