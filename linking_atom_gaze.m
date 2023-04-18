@@ -10,7 +10,6 @@ pkg load quaternion
  Vou otimizar as coisas para a publicação no JoVE.
  Leitura das coords atomicas agora é num arquivo .xyz (bem mais rapido que .xlsx)
  Dados da tarefa (task) agora estão dentro do arquivo de função get_task_data.m
-
 %}
 % ===CONFIGS===
 task = ["C","G","I"];      %identifiers of each task. Rename accordingly.
@@ -37,19 +36,19 @@ xyz_file_name = strcat ("modelos/", config_model_name, ".xyz");
 
 % ===FUNCTIONS===
 
-%rot_matrix retorna matriz de rotação a partir de um quaternio
+% rot_matrix retorna matriz de rotação {R} a partir de um quaternio {qr,qi,qj,qk}
 function R = rot_matrix (qr,qi,qj,qk, s = 1) %no .xlsx está como qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
 
-%transforma axis-angle em quaternio|| in:(x,y,z,angle) || out:[qw,qx,qy,qz] (qw is real part)
-function Q = axangle2quat (x,y,z,angle) %Q = [qw,qx,qy,qz]. angle in degrees
+% transforma axis-angle em quaternio || in:(x,y,z,angle in degrees) || out:[qw,qx,qy,qz] (qw is real part)
+function Q = axangle2quat (x,y,z,angle) %Q = [qw,qx,qy,qz].
   Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
 endfunction
 
-%codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+% codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  %strvcat extrai a string de um cell array
@@ -72,14 +71,36 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
     endswitch
   endfor
 endfunction
-%normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0 (centro da boundingbox do jmol
+% normaliza xyz atom coords 0,0,0 (como centro da boundingbox do jmol)
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
+  % get max and min x,y and z coords. They are the boundingbox extremities.
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
   correcao_centro = (max_xyz+min_xyz)/2;
   norm_atom_xyz = atom_xyz(:,1:3) - correcao_centro;
 endfunction
+% returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
+function [atom_count,elem,atom_coords] = get_xyz_data (filename)
+  fid = fopen(filename, 'r');
 
+  % Read the number of atoms from the first line of the file
+  line = fgetl(fid);
+  atom_count = str2num(line);
+
+  % Pre-allocate arrays for the element symbols and coordinates
+  elem = cell(atom_count, 1);
+  atom_coords = zeros(atom_count, 3);
+
+  % Loop over each line of the file after the first line
+  line = fgetl(fid); #
+  for i = 1:atom_count
+    line = fgetl(fid);
+    line_data = strsplit(line);
+    elem{i} = line_data{1};
+    atom_coords(i, :) = str2double(line_data(2:4));
+  end
+  fclose(fid);
+endfunction
 
 
 ## ==============
