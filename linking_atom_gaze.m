@@ -3,60 +3,15 @@ pkg load quaternion
 #http://jmol.sourceforge.net/demo/jssample0.html
 
 #{
- v0.8 
- De volta ao octave, agora em 2023. 
+ v0.8
+ De volta ao octave, agora em 2023.
  Vou otimizar as coisas para a publicação no JoVE.
  Leitura das coords atomicas agora é num arquivo .xyz (bem mais rapido que .xlsx)
  Troca tipo* por task*
  Dados da tarefa (task) agora estão dentro do arquivo de função get_task_data.m
- 
+
 #}
-
-#rot_matrix retorna matriz de rotação a partir de um quaternio 
-function R = rot_matrix (qr,qi,qj,qk, s = 1) #no .xlsx está como qi,qj,qk,qr.
-  R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
-      2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
-      2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)]; 
-endfunction
-
-#transforma axis-angle em quaternio|| in:(x,y,z,angle) || out:[qw,qx,qy,qz] (qw is real part)
-function Q = axangle2quat (x,y,z,angle) #Q = [qw,qx,qy,qz]. angle in degrees
-  Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
-endfunction
-
-#codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
-function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)  
-  for i = 1:atom_count
-    switch ( strvcat(atom_elem(i)) )  #strvcat extrai a string de um cell array
-      case "H"
-        atom_xyz(i,4) = 1;
-        atom_cor(i,1:4) = [74, 0.75,0.75,0.75];
-      case "C"
-        atom_xyz(i,4) = 12;
-        atom_cor(i,1:4) = [154, 0,0,0];
-      case "N"
-        atom_xyz(i,4) = 14;
-        atom_cor(i,1:4) = [140, 0,0,1];
-      case "O"
-        atom_xyz(i,4) = 16;
-        atom_cor(i,1:4) = [146, 1,0,0];
-      otherwise
-        error ("ERRO! Novo elemento detectado. Alterar código");
-        atom_xyz(i,4) = -1;
-        atom_cor(i,1:4) = [20, 0,1,0];
-    endswitch
-  endfor
-endfunction
-#normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0 (centro da boundingbox do jmol
-function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz) 
-  max_xyz = max(atom_xyz(:,1:3));
-  min_xyz = min(atom_xyz(:,1:3));
-  correcao_centro = (max_xyz+min_xyz)/2;
-  norm_atom_xyz = atom_xyz(:,1:3) - correcao_centro;
-endfunction
-
-
-## ===CONFIGS===
+% ===CONFIGS===
 task = ["C","G","I"]; #identifiers of each task. Rename accordingly.
 config_task =           2; #Refer to line above. Usado para obter dados referentes a task
 config_input_data =     1; #1 para ler os .xlsx de input
@@ -79,18 +34,65 @@ xlsx_file_name = strcat ("tabela_de_dados_opengaze.xlsx");
 [config_model_name,task_name,config_ref_quat] = get_task_data (config_task);
 xyz_file_name = strcat ("modelos/", config_model_name, ".xyz");
 
+% ===FUNCTIONS===
+
+%rot_matrix retorna matriz de rotação a partir de um quaternio
+function R = rot_matrix (qr,qi,qj,qk, s = 1) #no .xlsx está como qi,qj,qk,qr.
+  R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
+      2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
+      2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
+endfunction
+
+%transforma axis-angle em quaternio|| in:(x,y,z,angle) || out:[qw,qx,qy,qz] (qw is real part)
+function Q = axangle2quat (x,y,z,angle) #Q = [qw,qx,qy,qz]. angle in degrees
+  Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
+endfunction
+
+%codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
+  for i = 1:atom_count
+    switch ( strvcat(atom_elem(i)) )  %strvcat extrai a string de um cell array
+      case "H"
+        atom_xyz(i,4) = 1;
+        atom_cor(i,1:4) = [74, 0.75,0.75,0.75];
+      case "C"
+        atom_xyz(i,4) = 12;
+        atom_cor(i,1:4) = [154, 0,0,0];
+      case "N"
+        atom_xyz(i,4) = 14;
+        atom_cor(i,1:4) = [140, 0,0,1];
+      case "O"
+        atom_xyz(i,4) = 16;
+        atom_cor(i,1:4) = [146, 1,0,0];
+      otherwise
+        error ("ERRO! Novo elemento detectado. Alterar código");
+        atom_xyz(i,4) = -1;
+        atom_cor(i,1:4) = [20, 0,1,0];
+    endswitch
+  endfor
+endfunction
+#normaliza coordenadas de atomos da matriz para o centro de rotacao ser 0,0,0 (centro da boundingbox do jmol
+function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
+  max_xyz = max(atom_xyz(:,1:3));
+  min_xyz = min(atom_xyz(:,1:3));
+  correcao_centro = (max_xyz+min_xyz)/2;
+  norm_atom_xyz = atom_xyz(:,1:3) - correcao_centro;
+endfunction
+
+
+
 ## ==============
 ## ===== Data Input =====
 
 if (config_input_data == 1)
   #limpar todas variaveis exceto as abaixo
   clear -x config* subject *name
-  tic();printf("Lendo arquivos xlsx... "); 
+  tic();printf("Lendo arquivos xlsx... ");
   #pegar contagem, elemento e coordenadas xyz de cada átomo do arquivo .xyz
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   printf("1.");
   #gerar vetor de cores para os atomos
-  atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem); 
+  atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem);
   printf("2.");
   # ler quaternios do .xlsx [x y z theta]
   Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
@@ -107,7 +109,7 @@ if (config_pre_calc == 1)
   atom_xyz(:,1:3) = normalize_jmol_rot_center (atom_xyz); #centralizado aqui!
   ## gerar matriz de rotação pelo tempo com base nas coordenadas Q4 das rotações registradas
   for t = 1: size (Q,1) #criando matriz de rotação para cada frame
-    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));  
+    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));
     #rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   #teste de rotação em 90graus
     for a=1:atom_count     #para cada atomo, aplicar a matriz de rotação
       #atom_xyzRot(a,1:3,t) = atom_xyz(a,1:3)*rot_vector(1:3,1:3,t); #1x3 * 3x3 = 1x3 (ESSE INVERTE A ROTACAO)
@@ -115,14 +117,14 @@ if (config_pre_calc == 1)
     endfor
   endfor
   for a=1:atom_count #gerar matriz de atomos do modelo referencia
-    ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_quat(1),config_ref_quat(2),config_ref_quat(3),config_ref_quat(4))*atom_xyz(a,1:3)')' ; 
+    ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_quat(1),config_ref_quat(2),config_ref_quat(3),config_ref_quat(4))*atom_xyz(a,1:3)')' ;
   endfor
 
-  ##Gerar gaze coords. em pixel na tela (gaze_px), partindo do centro da referencia 
+  ##Gerar gaze coords. em pixel na tela (gaze_px), partindo do centro da referencia
   ##(gaze_ref_px) e do centro do canvas (gaze_cvs_px)
   gaze_px = gaze(:,1:2).*[config_screen_size];
   gaze_ref_px = gaze_px - config_ref_center_px;
-  gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px; 
+  gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px;
 
   ## gerar projeção xy dos átomos rotacionados pelas matrizes no tempo
   atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); #atom_xy(atomos, xy, frame) {centralizado canvas}
@@ -202,7 +204,7 @@ if (config_dist_integral == 1)
   printf("concluido!");toc(); #Time spent (gaze dist)~ 60 s
 endif
 
-## calcular gradiende de transparência da molecula VARIANDO NO TEMPO 
+## calcular gradiende de transparência da molecula VARIANDO NO TEMPO
 if (config_dist_integral_temporal == 1)
   printf("Gerando animacao do gradiente de transparencia...");tic();
   atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1); #(a,1)
@@ -252,7 +254,7 @@ endif
 
 ## graficos
 if ( isempty( strfind(config_graficos,"1") ) != 1) #scatter 2D da molecula sem rotacao
-  figure (1); #proj xy 
+  figure (1); #proj xy
     scatter (atom_xyz(:,1),atom_xyz(:,2), atom_cor(:,1), atom_cor(:,2:4));
     title ("Projeção xy");
     axis ("square", "equal");
@@ -260,7 +262,7 @@ if ( isempty( strfind(config_graficos,"1") ) != 1) #scatter 2D da molecula sem r
 endif
 if ( isempty( strfind(config_graficos,"2") ) != 1) #scatter 2D da projecao xy ROTACIONADA no instante frame
   frame=1;
-  figure (2); 
+  figure (2);
 #    plot (atom_xy(:,1,frame)(H), atom_xy(:,2,frame)(H), "r-");  #contorno
     scatter (atom_xy(:,1,frame),atom_xy(:,2,frame), atom_cor(:,1), atom_cor(:,2:4));
     title ("Projeção xy rotacionada");
@@ -268,20 +270,20 @@ if ( isempty( strfind(config_graficos,"2") ) != 1) #scatter 2D da projecao xy RO
     xlabel ("x"); ylabel ("y");
 endif
 if ( isempty( strfind(config_graficos,"3") ) != 1) #scatter 3D da molecula sem rotacao
-  figure (3); 
+  figure (3);
     scatter3 (atom_xyz(:,1), atom_xyz(:,2), atom_xyz(:,3), atom_cor(:,1), atom_cor(:,2:4));
     axis ("square", "equal");
     xlabel("x"); ylabel("y"); zlabel("z");
 endif
-if ( isempty( strfind(config_graficos,"4") ) != 1) #scatter 3D da molecula rotacionada no instante frame 
-  figure (4); 
+if ( isempty( strfind(config_graficos,"4") ) != 1) #scatter 3D da molecula rotacionada no instante frame
+  figure (4);
     frame = 1;
     scatter3 (atom_xyzRot(:,1,frame), atom_xyzRot(:,2,frame), atom_xyzRot(:,3,frame), atom_cor(:,1), atom_cor(:,2:4));
     axis ("square", "equal");
     xlabel("x"); ylabel("y"); zlabel("z");
 endif
-if ( isempty( strfind(config_graficos,"5") ) != 1) #scatter 3D da molecula rotacionada no instante frame 
-  figure (5); 
+if ( isempty( strfind(config_graficos,"5") ) != 1) #scatter 3D da molecula rotacionada no instante frame
+  figure (5);
 #    for (frame=1 : size(Q,1) )
     for (frame=100 : 110 )
       atom_cor_proximidade_gaze = atom_cor;
