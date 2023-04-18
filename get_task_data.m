@@ -14,6 +14,6 @@ function [model_name,task_name,ref_quat] = get_task_data (task_num)
     task_name = 'intro';
     ref_quat = [0.5183,   0.5105,   0.4575,  -0.5105]; #quaternios para a referencia
   otherwise
-    error ("ERRO! Task não reconhecida!");
+    error ("ERRO! Task não reconhecida! Atualize os dados de get_task_data.m");
   endswitch
 endfunction
