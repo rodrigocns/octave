@@ -1,39 +1,30 @@
 pkg load io
-clear
-input_filename = 'iRT gsheets';
-output_filename = 'iRT_data'; %sem o formato de arquivo
-colunas = [8,9,10,11,12,13]; %colunas para descomprimir
-
 %Script lê arquivo 'input_filename' e cria um arquivo csv 'output_filename'
 % expandindo de uma resolução por linha para um ponto de dado por linha.
 
-%{
-TODO:
-com o nome do arquivo excel de dados comprimidos vindo da planilha online e
-o array de índices das colunas % serem descomprimidas:
-  [_] gerar uma aba com os dados completos de array
-  [_] gerar uma aba com dados gerais pontuais (sem arrays, não temporais)
-%}
+clear
+input_filename = 'iRT gsheets.xlsx'; %downloaded sheets filename (format incl.).
+output_filename = 'iRT_data'; %sem o formato de arquivo
+colunas = [8,9,10,11,12,13]; %colunas do input para descomprimir
 
-%funções
+% Funções =================
 function data_ready = extract(compressed_data)
   splitted_data = strsplit(compressed_data, ',');
   data_ready = str2double(splitted_data)';
 endfunction
 
-%Copiar dados da planilha============================
+% Copiar dados da planilha ============================
 tic;printf("Lendo planilha...");
-[sheets_num,sheets_txt,sheets_raw] = xlsread(strcat(input_filename,".xlsx"),1);
+[sheets_num,sheets_txt,sheets_raw] = xlsread(input_filename,1);
 printf("DONE! ");
 toc;
 
-%Extraindo dados ===================================
+% Descompactando dados ===================================
 tic;printf("Descomprimindo dados...");
 header={"sessionID", "task_id", "epoch", "duration", "Qi", "Qj", "Qk", "Qr"};
 full_matrix = header;
 
 %para cada linha de dados (2a até a ultima)
-%for linha = 2:2
 contador = 0;
 for linha = 2:size(sheets_raw,1)
   numeric_matrix = [];
@@ -54,23 +45,33 @@ for linha = 2:size(sheets_raw,1)
   full_matrix = vertcat(full_matrix,task_matrix);
   contador++;
 endfor
-printf("%i linhas processadas. DONE!",contador);toc;
+printf("%i linhas processadas. DONE! ",contador);toc;
+clear contador;
 
-
+% Salvando os dados ====================================
 tic;printf("Salvando dados...");
 
-% Write to CSV file
-%cell2csv(strcat(output_filename,".csv"), full_matrix);
-%printf(".csv, ");
 
-% Write to XLSX file
+
+% Write to XLSX file (single line)
 %oct2xls(strcat(output_filename,".xlsx"), full_matrix);
-xlswrite (strcat(output_filename,".xlsx"), full_matrix);
-printf(".xlsx, ");
+%xlswrite (strcat(output_filename,".xlsx"), full_matrix);
+
+% write to xlsx file
+xls = xlsopen(strcat(output_filename,".xlsx"), 1);
+xls = oct2xls(full_matrix,xls,1);
+xls = xlsclose(xls);
+
+printf(".xlsx salvo. ");
 
 printf("DONE! ");toc;
 
-%Retrieving ============================
+% CSV============================
+
+% Write to CSV file
+%cell2csv(strcat(output_filename,".csv"), full_matrix);
+%printf(".csv salvo ");
+
 #{
 tic;printf("Carregando dados...");
 cell_mat_new = csv2cell(strcat(output_filename,".csv"));
