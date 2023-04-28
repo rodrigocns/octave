@@ -7,21 +7,21 @@ pkg load quaternion
 
  v0.8
  De volta ao octave, agora em 2023.
- Vou otimizar as coisas para a publicação no JoVE.
- Leitura das coords atomicas agora é num arquivo .xyz (bem mais rapido que .xlsx)
- Dados da tarefa (task) agora estão dentro do arquivo de função get_task_data.m
+ Vou otimizar as coisas para a publicacao no JoVE.
+ Leitura das coords atomicas agora eh num arquivo .xyz (bem mais rapido que .xlsx)
+ Dados da tarefa (task) agora estao dentro do arquivo de funcao get_task_data.m
 %}
 % ===CONFIGS===
 task = ["C","G","I"];      %identifiers of each task. Rename accordingly.
 config_task =           2; %Refer to line above. Usado para obter dados referentes a task
 config_input_data =     1; %1 para ler os .xlsx de input
 config_pre_calc =       1; %1 se for realizar outros calculos (importantes para o resto)
-config_convhull =       0; %1 para calcular a convexhull da projeção xy dos atomos em cada tempo
+config_convhull =       0; %1 para calcular a convexhull da projecao xy dos atomos em cada tempo
 config_gaze_atom_dist = 1; %1 para calcular matriz de distancia entre gazepoint e atomos interativos.
 config_dist_integral =  1; %1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_dist_integral_temporal =  1; %1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_xls_write =  "0"; %1: convexhull, 2:gazepoint. Escrever arquivos.
-config_graficos =   "0"; %1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais próximo
+config_graficos =   "0"; %1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais prï¿½ximo
 subject =  63; %1~62
 config_screen_size = [1360,720];
 config_ref_center_px = [211,376];
@@ -36,8 +36,8 @@ xyz_file_name = strcat ("modelos/", config_model_name, ".xyz");
 
 % ===FUNCTIONS===
 
-% rot_matrix retorna matriz de rotação {R} a partir de um quaternio {qr,qi,qj,qk}
-function R = rot_matrix (qr,qi,qj,qk, s = 1) %no .xlsx está como qi,qj,qk,qr.
+% rot_matrix retorna matriz de rotacao {R} a partir de um quaternio {qr,qi,qj,qk}
+function R = rot_matrix (qr,qi,qj,qk, s = 1) %no .xlsx esta como qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
@@ -48,7 +48,7 @@ function Q = axangle2quat (x,y,z,angle) %Q = [qw,qx,qy,qz].
   Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
 endfunction
 
-% codificar átomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+% codificar atomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  %strvcat extrai a string de um cell array
@@ -65,7 +65,7 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
         atom_xyz(i,4) = 16;
         atom_cor(i,1:4) = [146, 1,0,0];
       otherwise
-        error ("ERRO! Novo elemento detectado. Alterar código");
+        error ("ERRO! Novo elemento detectado. Atualizar codigo");
         atom_xyz(i,4) = -1;
         atom_cor(i,1:4) = [20, 0,1,0];
     endswitch
@@ -105,13 +105,13 @@ endfunction
 
 
 % ===== Data Input =====
-% Obtenção dos dados
+% Obtencao dos dados
 
 if (config_input_data == 1)
   %limpar todas variaveis exceto as abaixo
   clear -x config* subject *name
   tic();printf("Lendo arquivos xlsx... ");
-  %pegar contagem, elemento e coordenadas xyz de cada átomo do arquivo .xyz
+  %pegar contagem, elemento e coordenadas xyz de cada atomo do arquivo .xyz
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   printf("1.");
   %gerar vetor de cores para os atomos
@@ -123,18 +123,18 @@ if (config_input_data == 1)
   % ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
   gaze(:,1:2) = xlsread (xlsx_file_name, task_name, "D2:E9000" );
   printf("4.");
-  printf("concluído!");toc();  %Time spent ~ 10 s
+  printf("concluido!");toc();  %Time spent ~ 10 s
 endif
 
 if (config_pre_calc == 1)
   tic();printf("Calculando... ");
-  ##encontrar centro de rotação (boundingbox do jmol)
+  ##encontrar centro de rotacao (boundingbox do jmol)
   atom_xyz(:,1:3) = normalize_jmol_rot_center (atom_xyz); %centralizado aqui!
-  ## gerar matriz de rotação pelo tempo com base nas coordenadas Q4 das rotações registradas
-  for t = 1: size (Q,1) %criando matriz de rotação para cada frame
+  ## gerar matriz de rotacao pelo tempo com base nas coordenadas Q4 das rotacoes registradas
+  for t = 1: size (Q,1) %criando matriz de rotacao para cada frame
     rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));
-    %rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %teste de rotação em 90graus
-    for a=1:atom_count     %para cada atomo, aplicar a matriz de rotação
+    %rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %teste de rotacao em 90graus
+    for a=1:atom_count     %para cada atomo, aplicar a matriz de rotacao
       %atom_xyzRot(a,1:3,t) = atom_xyz(a,1:3)*rot_vector(1:3,1:3,t); %1x3 * 3x3 = 1x3 (ESSE INVERTE A ROTACAO)
       atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ; %3x3 * 3x1 = 3x1 (ESSE E O CERTO) {rotacoes centralizadas no centro de rotacoes}
     endfor
@@ -149,7 +149,7 @@ if (config_pre_calc == 1)
   gaze_ref_px = gaze_px - config_ref_center_px;
   gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px;
 
-  ## gerar projeção xy dos átomos rotacionados pelas matrizes no tempo
+  ## gerar projecao xy dos atomos rotacionados pelas matrizes no tempo
   atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atomos, xy, frame) {centralizado canvas}
   atom_xy_px(:,:,:) = config_fator_px*atom_xy(:,:,:); %obter pixels das coordenadas da projecao xy dos atomos {centralizado no centro de rot.}
   %ref_atom_xy(:,1:2) = ref_atom_xyz(:,1:2); %ref_atom_xy(atomo,xy) {centralizado na ref}
@@ -161,17 +161,17 @@ if (config_convhull == 1)
   for t = 1:size(Q,1) %aplicar convex hull em cada frame.
     [H,area(t,1)] = convhull (atom_xy(:,1,t),atom_xy(:,2,t)); %se deixar [H,v]= ..., calcula volume em V
   endfor
-  area(:,2) = atom_count./area(:,1);   %densidade de átomos na área do convexhull
+  area(:,2) = atom_count./area(:,1);   %densidade de atomos na area do convexhull
   if ( isempty( strfind(config_xls_write,"1") ) != true)
     printf("desativei esta funcao xlswrite");
-    %xlswrite (strcat("compiladoPorSubjects_",task(config_task),".xlsx"), area, num2str(subject), "AD2");   %registrar area do convexhull e densidade de átomos nessa área
+    %xlswrite (strcat("compiladoPorSubjects_",task(config_task),".xlsx"), area, num2str(subject), "AD2");   %registrar area do convexhull e densidade de ï¿½tomos nessa ï¿½rea
   endif
   printf("...convhull ok.");
 endif
 
-## gerar distâncias do gazepoint(fracao da tela) pra cada átomo
+## gerar distancias do gazepoint(fracao da tela) pra cada atomo
 if (config_gaze_atom_dist == 1)
-  %gaze_atom_dist = sqrt((x-x')² + (y-y')² )
+  %gaze_atom_dist = sqrt((x-x')ï¿½ + (y-y')ï¿½ )
   gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
   for a=1:atom_count
     for t=1 : size(Q,1)
@@ -179,8 +179,8 @@ if (config_gaze_atom_dist == 1)
       gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
     endfor
   endfor
-  for t=1 : size(Q,1) %varredura do tempo para preencher aonde está o gaze e o átomo mais próximo do gaze
-    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) %marca em qual parte está o gaze da pessoa
+  for t=1 : size(Q,1) %varredura do tempo para preencher aonde esta o gaze e o atomo mais proximo do gaze
+    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) %marca em qual parte esta o gaze da pessoa
       gaze_status(t,1) = 2;
       [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
     elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
@@ -193,13 +193,13 @@ if (config_gaze_atom_dist == 1)
   endfor
   printf("...gaze dist ok.");
   if ( isempty( strfind(config_xls_write,"2") ) != true)
-    xlswrite (xlsx_file_name, [gaze_cvs_px,gaze_status,atom_closer_to_gaze], num2str(subject), "AV2");   %registrar area do convexhull e densidade de átomos nessa área
+    xlswrite (xlsx_file_name, [gaze_cvs_px,gaze_status,atom_closer_to_gaze], num2str(subject), "AV2");   %registrar area do convexhull e densidade de atomos nessa area
   endif
   printf("...e impresso.");
-printf("calculos concluídos! ");toc(); %Time spent (gaze dist)~ 3 s
+printf("calculos concluidos! ");toc(); %Time spent (gaze dist)~ 3 s
 endif
 
-## calcular gradiende de transparência da molecula baseado no tempo de proximidade do gaze
+## calcular gradiende de transparencia da molecula baseado no tempo de proximidade do gaze
 if (config_dist_integral == 1)
   printf("Cruzando dados do gaze com a posicao dos atomos...");tic();
   atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1);
@@ -227,7 +227,7 @@ if (config_dist_integral == 1)
   printf("concluido!");toc(); %Time spent (gaze dist)~ 60 s
 endif
 
-## calcular gradiende de transparência da molecula VARIANDO NO TEMPO
+## calcular gradiende de transparencia da molecula VARIANDO NO TEMPO
 if (config_dist_integral_temporal == 1)
   printf("Gerando animacao do gradiente de transparencia...");tic();
   atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1); #(a,1)
@@ -279,7 +279,7 @@ endif
 if ( isempty( strfind(config_graficos,"1") ) != 1) %scatter 2D da molecula sem rotacao
   figure (1); %proj xy
     scatter (atom_xyz(:,1),atom_xyz(:,2), atom_cor(:,1), atom_cor(:,2:4));
-    title ("Projeção xy");
+    title ("Projecao xy dos vertices");
     axis ("square", "equal");
     xlabel ("x"); ylabel ("y");
 endif
@@ -288,13 +288,14 @@ if ( isempty( strfind(config_graficos,"2") ) != 1) %scatter 2D da projecao xy RO
   figure (2);
 %    plot (atom_xy(:,1,frame)(H), atom_xy(:,2,frame)(H), "r-");  %contorno
     scatter (atom_xy(:,1,frame),atom_xy(:,2,frame), atom_cor(:,1), atom_cor(:,2:4));
-    title ("Projeção xy rotacionada");
+    title ("Projecao xy rotacionada dos vertices");
     axis ("square", "equal");
     xlabel ("x"); ylabel ("y");
 endif
 if ( isempty( strfind(config_graficos,"3") ) != 1) %scatter 3D da molecula sem rotacao
   figure (3);
     scatter3 (atom_xyz(:,1), atom_xyz(:,2), atom_xyz(:,3), atom_cor(:,1), atom_cor(:,2:4));
+    title ("Scatter 3D dos vertices");
     axis ("square", "equal");
     xlabel("x"); ylabel("y"); zlabel("z");
 endif
@@ -302,6 +303,7 @@ if ( isempty( strfind(config_graficos,"4") ) != 1) %scatter 3D da molecula rotac
   figure (4);
     frame = 1;
     scatter3 (atom_xyzRot(:,1,frame), atom_xyzRot(:,2,frame), atom_xyzRot(:,3,frame), atom_cor(:,1), atom_cor(:,2:4));
+    title ("Scatter 3D dos vertices com a orientaÃ§Ã£o em t=frame");
     axis ("square", "equal");
     xlabel("x"); ylabel("y"); zlabel("z");
 endif
@@ -312,7 +314,7 @@ if ( isempty( strfind(config_graficos,"5") ) != 1) %scatter 3D da molecula rotac
       atom_cor_proximidade_gaze = atom_cor;
       if ( gaze_status(frame,1) == 2) %se gaze esta no canvas 2, destacar atomo mais proximo
         temp_atom_cor = atom_cor_proximidade_gaze(atom_closer_to_gaze(frame,2),:);
-        temp_atom_cor = [temp_atom_cor(1,1)*3, 0,1,0]; %triplica o tamanho do átomo mais próximo do gaze e fica verde
+        temp_atom_cor = [temp_atom_cor(1,1)*3, 0,1,0]; %triplica o tamanho do atomo mais proximo do gaze e fica verde
         atom_cor_proximidade_gaze(atom_closer_to_gaze(frame,2),:) = temp_atom_cor;
       endif
       scatter (atom_xy_px(:,1,frame), atom_xy_px(:,2,frame), atom_cor_proximidade_gaze(:,1), atom_cor_proximidade_gaze(:,2:4));
