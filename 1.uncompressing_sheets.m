@@ -70,7 +70,7 @@ xls = oct2xls(full_matrix,xls,"data");
 xls = oct2xls(atemporal_cmatrix,xls,"sessions");
 xls = xlsclose(xls);
 
-printf(".xlsx salvo. ");
+printf(strcat(output_filename,".xlsx salvo. "));
 
 printf("DONE! ");toc;
 
