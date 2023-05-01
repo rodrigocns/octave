@@ -1,14 +1,28 @@
 pkg load io
-%Script lê arquivo 'input_filename' e cria um arquivo csv 'output_filename'
-% expandindo de uma resolução por i_line para um ponto de dado por i_line.
+% Script lê arquivo 'input_filename' e cria um arquivo csv 'output_filename'
+%expandindo de uma resolução por i_line para um ponto de dado por i_line.
 
 clear
-% Settings (altere conforme necessário) ====================
-input_filename = 'iRT gsheets.xlsx'; %downloaded sheets filename (format incl.).
-output_filename = 'iRT_data'; %sem o formato de arquivo
-zipped_rows = [8,9,10,11,12,13]; %colunas do input para descomprimir
+% Settings (modify as needed) ====================
+
+% name of downloaded sheets filename
+input_filename = 'iRT gsheets.xlsx';
+% output file name. No need to write format (ex.: .xlsx)
+output_filename = 'iRT_data';
+
+% Header names of the data tab (temporal data)
 header={"sessionID", "task_id", "epoch", "duration", "Qi", "Qj", "Qk", "Qr"};
+% Header names of the session identifiers tab (ex.: name, id, email, etc.)
 header_atemporal={"sessionID", "task_id", "startEpoch", "email", "subject", "pxAngsRatio"};
+% The columns from input file that should be expanded.
+zipped_rows = [8,9,10,11,12,13];
+
+
+% #=========================================#
+% #  NÃO ALTERE NADA ABAIXO DESSA LINHA!    #
+% # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
+% #=========================================#
+
 % Funções =================================================
 function uncompressed_data = extract(compressed_data)
   splitted_data = strsplit(compressed_data, ',');
@@ -62,8 +76,8 @@ printf("%i linhas processadas. DONE! ",contador);toc;
 clear contador;
 
 % Salvando os dados ====================================
-tic;printf("Salvando dados...");
-
+tic;printf();
+printf(strcat("Saving ", num2str(size(full_matrix,1)), " rows of data (estimated time: ", num2str(size(full_matrix,1)/40), " s)..."));
 % write to xlsx file
 xls = xlsopen(strcat(output_filename,".xlsx"), 1);
 xls = oct2xls(full_matrix,xls,"data");
