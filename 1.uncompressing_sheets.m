@@ -1,6 +1,8 @@
 pkg load io
 % Script lê arquivo 'input_filename' e cria um arquivo csv 'output_filename'
 %expandindo de uma resolução por i_line para um ponto de dado por i_line.
+% Script reads file 'input_filename' and creates a csv file 'output_filename'
+%expanding from a resolution by i_line to a data point by i_line.
 
 clear
 % Settings (modify as needed) ====================
