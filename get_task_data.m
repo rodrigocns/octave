@@ -3,17 +3,18 @@ function [model_name,task_name,ref_quat] = get_task_data (task_num)
   switch task_num
   case 1
     model_name = 'pseudobatracotoxin_molecule'; #caprolactama, pseudobatracotoxin_molecule
-    task_name = 'cor';
-    ref_quat = [0.6873,  -0.4903,  -0.2825,  -0.4554]; #quaternios para a referencia
+    task_name = 'bolaBastao_c';
+    ref_quat = [0.687341, -0.490258, -0.282534, -0.455395]; % quaternios da referencia
   case 2
     model_name = 'pseudobatracotoxin_molecule';
-    task_name = 'cinza';
-    ref_quat = [0.6873,  -0.4903,  -0.2825,  -0.4554]; #quaternios para a referencia
+    task_name = 'poligonFill';
+    ref_quat = [0.687341, -0.490258, -0.282534, -0.455395];
   case 3
-    model_name = 'caprolactama';
-    task_name = 'intro';
-    ref_quat = [0.5183,   0.5105,   0.4575,  -0.5105]; #quaternios para a referencia
+    model_name = 'MRT_VK_mol';
+    task_name = 'mrt';
+    ref_quat = [0.921868, 0.299222, 0.223654, -0.102977];
   otherwise
-    error ("ERRO! Task não reconhecida! Atualize os dados de get_task_data.m");
+    error ("ERRO! Task not recognized! Update data from get_task_data.m");
   endswitch
 endfunction
+
