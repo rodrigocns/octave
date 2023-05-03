@@ -3,12 +3,7 @@ pkg load quaternion
 %http://jmol.sourceforge.net/demo/jssample0.html
 
 %{
-
-
- v0.8
- De volta ao octave, agora em 2023.
- Vou otimizar as coisas para a publicacao no JoVE.
- Leitura das coords atomicas agora eh num arquivo .xyz (bem mais rapido que .xlsx)
+ v0.9 - get ready for the manuscript
  Dados da tarefa (task) agora estao dentro do arquivo de funcao get_task_data.m
 %}
 % ===CONFIGS===
@@ -32,7 +27,8 @@ config_gauss_wdt = 0.922; %desvio padrao do config_fator_px
 xlsx_file_name = strcat ("tabela_de_dados_opengaze",".xlsx");
 %xyz_file_name = "convexhull/xyz coords.xlsx";
 [config_model_name,task_name,config_ref_quat] = get_task_data (config_task);
-xyz_file_name = strcat ("modelos/", config_model_name, ".xyz");
+xyz_file_name = strcat ("modelos/", config_model_name, ".xyz"); %name of .xyz file used in task
+
 
 % ===FUNCTIONS===
 
