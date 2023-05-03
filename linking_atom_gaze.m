@@ -21,7 +21,7 @@ config_gaze_atom_dist = 1; %1 para calcular matriz de distancia entre gazepoint 
 config_dist_integral =  1; %1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_dist_integral_temporal =  1; %1 para calcular coluna de alfa/transparencia de cada atomo menos visto
 config_xls_write =  "0"; %1: convexhull, 2:gazepoint. Escrever arquivos.
-config_graficos =   "0"; %1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais pr�ximo
+config_graficos =   "0"; %1:projecao, 2:projecao em t, 3:scatter3,  4:scatter3 em frame, 5:scatter3 em frame com gaze mais proximo
 subject =  63; %1~62
 config_screen_size = [1360,720];
 config_ref_center_px = [211,376];
@@ -171,7 +171,7 @@ endif
 
 ## gerar distancias do gazepoint(fracao da tela) pra cada atomo
 if (config_gaze_atom_dist == 1)
-  %gaze_atom_dist = sqrt((x-x')� + (y-y')� )
+  %gaze_atom_dist é = sqrt((x-x')^2 + (y-y')^2 )
   gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
   for a=1:atom_count
     for t=1 : size(Q,1)
