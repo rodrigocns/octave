@@ -103,8 +103,9 @@ tabela(1:end,35) = [0:0.1:val_ref(config_tipo,1)];
 %%abrir dados da tabela openGaze
 if (config_dados_input == 1)
   tic();
-  printf ("Carregando dados (vai demorar)...");
-  dados = xlsread ("User 1_all_gaze.xlsx", "User 1_all_gaze", "C3:AJ13843");
+  printf ("Carregando dados (pode demorar)...");
+  dados = xlsread ("User 1_all_gaze.xlsx", 1, "C3:AJ13843");
+  %PODE SER TUDO SE FOR CELL. depois a pessoa escolhe quais colunas interessam
   printf ("pronto!");
   toc();
 endif
