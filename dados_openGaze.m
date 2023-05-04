@@ -78,8 +78,8 @@ clear -x dados
 %%configs
 
 config_tipo = 1; %1=cor || 2=cinza || qual o tipo do teste.
-config_table_output = 1; %0=nao || 1=sim || imprimir arquivo xlsx dos dados?
 config_dados_input = 0; %0=nao || 1=sim || importar dados do xlsx? so precisa 1 vez.
+config_table_output = 1; %0=nao || 1=sim || imprimir arquivo xlsx dos dados?
 config_plot = 0; %0=nao || 1=sim || plotar os dados da tabela
 
 %%inicializar valores
@@ -93,11 +93,14 @@ elseif (config_tipo == 2)
 else
   error("ERRO! config_tipo nao reconhecido!");
 endif
-%%inicializar tabela de dados
+%%inicializar tabela de dados com n linhas de zeros
+% n=linhas de dados do iRT (duracao*10Hz+1)
+% colunas
 tabela(1:(val_ref(config_tipo,1)*10+1),1:35) = 0;
-tabela(1:end,35) = [0:0.1:val_ref(config_tipo,1)]; %tabela[contagem, tempo_opengaze, (...), tempo_iRoT]
+% preenche ultima coluna com dados de tempo do iRT (tempo avançando a cada 0.1s)
+tabela(1:end,35) = [0:0.1:val_ref(config_tipo,1)];
 
-%%carregar dados da tabela openGaze
+%%abrir dados da tabela openGaze
 if (config_dados_input == 1)
   tic();
   printf ("Carregando dados (vai demorar)...");
