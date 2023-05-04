@@ -106,19 +106,20 @@ endfunction
 if (config_input_data == 1)
   %limpar todas variaveis exceto as abaixo
   clear -x config* subject *name
-  tic();printf("Lendo arquivos xlsx... ");
-  %pegar contagem, elemento e coordenadas xyz de cada atomo do arquivo .xyz
+  tic();
+  printf("Lendo arquivos... ");
+  %pegar contagem, elemento e coordenadas xyz de cada atomo do arquivo .xyz já definido
+  printf(strcat(xyz_file_name,"; "));
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
-  printf("1.");
   %gerar vetor de cores para os atomos
+  printf(".");
   atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem);
-  printf("2.");
   % ler quaternios do .xlsx [x y z theta]
+  printf(strcat(xlsx_file_name,"; "));
   Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
-  printf("3.");
   % ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
+  printf("one more tab; ");
   gaze(:,1:2) = xlsread (xlsx_file_name, task_name, "D2:E9000" );
-  printf("4.");
   printf("concluido!");toc();  %Time spent ~ 10 s
 endif
 
