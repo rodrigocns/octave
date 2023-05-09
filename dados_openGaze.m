@@ -93,19 +93,19 @@ elseif (config_tipo == 2)
 else
   error("ERRO! config_tipo nao reconhecido!");
 endif
-%%inicializar tabela de dados com n linhas de zeros
+%%inicializa tabela(nxm) de dados com n linhas de zeros
 % n=linhas de dados do iRT (duracao*10Hz+1)
-% colunas
+% m = categorias de dados do eyetracker
 tabela(1:(val_ref(config_tipo,1)*10+1),1:35) = 0;
-% preenche ultima coluna com dados de tempo do iRT (tempo avançando a cada 0.1s)
+% preenche ultima coluna com dados de tempo do iRT (tempo avancando a cada 0.1s)
 tabela(1:end,35) = [0:0.1:val_ref(config_tipo,1)];
 
-%%abrir dados da tabela openGaze
+%%abre dados da tabela openGaze
 if (config_dados_input == 1)
   tic();
   printf ("Carregando dados (pode demorar)...");
   dados = xlsread ("User 1_all_gaze.xlsx", 1, "C3:AJ13843");
-  %PODE SER TUDO SE FOR CELL. depois a pessoa escolhe quais colunas interessam
+  %PODE SER TUDO SE FOR CELL e depois a pessoa escolhe quais colunas interessam
   printf ("pronto!");
   toc();
 endif
@@ -117,7 +117,7 @@ for i = 1 : size(tabela,1)
   [x,dados_count] = min( abs( dados(:,2)-calc_t (tabela(i,35),val_ref(config_tipo,1:3)) ) );  %recebe posicao do melhor valor de tempo
   %%preencher tabela com valores da linha encontrada
   tabela(i,1:34) = calcular_linha (dados_count, dados(dados_count-4:dados_count+4,:));
-  if (rem(i,100) == 0)
+  if (rem(i,100) == 0) %remainder of division
     printf("[%i]",i);
   endif
 endfor
