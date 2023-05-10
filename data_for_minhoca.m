@@ -20,8 +20,8 @@ printf("Reading done\n");
 
 for n = 1 :size(session_arr,1)
   if and( strcmp(session_arr{n,1},num2str(session_ID)), strcmp(session_arr{n,2}, task_ID) )
-    ref_data = cell2mat(session_arr(n,7:10));
-    printf("Reference orientation found: %d %d %d %d\n",ref_data(1),ref_data(2),ref_data(3),ref_data(4));
+    ref_quat_data = cell2mat(session_arr(n,7:10));
+    printf("Reference orientation found: %d %d %d %d\n",ref_quat_data(1),ref_quat_data(2),ref_quat_data(3),ref_quat_data(4));
     break;
   endif
 endfor
@@ -47,6 +47,8 @@ for n = first_line : size(raw_arr,1)
 endfor
 
 % get slice of data
-matrix_data=cell2mat(raw_arr(first_line:last_line,5:8));
+matrix_quat_data=cell2mat(raw_arr(first_line:last_line,5:8));
+clear -x matrix_quat_data ref_quat_data;
+%quaternion : [i j k r]
 printf("DONE!\n");
 
