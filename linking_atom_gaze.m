@@ -67,14 +67,18 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
     endswitch
   endfor
 endfunction
-% normaliza xyz atom coords 0,0,0 (como centro da boundingbox do jmol)
+
+% normaliza xyz atom coords 0,0,0 (at the center of jmol boundingbox )
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
-  % get max and min x,y and z coords. They are the boundingbox extremities.
+  % get max and min x,y,z coords. from the atom_xyz array.
+  % These are the boundingbox extremities in jmol.
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
+  % normalize position of entire array
   correcao_centro = (max_xyz+min_xyz)/2;
   norm_atom_xyz = atom_xyz(:,1:3) - correcao_centro;
 endfunction
+
 % returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
 function [atom_count,elem,atom_coords] = get_xyz_data (filename)
   fid = fopen(filename, 'r');
