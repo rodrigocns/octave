@@ -92,7 +92,7 @@ function [atom_count,elem,atom_coords] = get_xyz_data (filename)
   atom_coords = zeros(atom_count, 3);
 
   % Loop over each line of the file after the first line
-  line = fgetl(fid); #
+  line = fgetl(fid);
   for i = 1:atom_count
     line = fgetl(fid);
     line_data = strsplit(line);
@@ -105,20 +105,20 @@ endfunction
 
 
 % ===== Data Input =====
-% Obtencao dos dados
+% Obtaining data
 
 if (config_input_data == 1)
-  %limpar todas variaveis exceto as abaixo
+  %clean all variables except those below
   clear -x config* subject *name
   tic();
   printf("Lendo arquivos... ");
-  %pegar contagem, elemento e coordenadas xyz de cada atomo do arquivo .xyz já definido
+  %take count, element and xyz coordinates of each atom from xyz_file_name.xyz file
   printf(strcat(xyz_file_name,"; "));
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
-  %gerar vetor de cores para os atomos
-  printf(".");
+  %create color vector for atoms
+  printf(" get colors...");
   atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem);
-  % ler quaternios do .xlsx [x y z theta]
+  % read quaternions from xlsx_file_name.xlsx file [i j k r]
   printf(strcat(xlsx_file_name,"; "));
   Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
   % ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
