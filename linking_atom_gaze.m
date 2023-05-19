@@ -50,8 +50,8 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  %strvcat extracts a string from a cell array
       case "H"
-        atom_xyz(i,4) = 1;
-        atom_cor(i,1:4) = [74, 0.75,0.75,0.75];
+        atom_xyz(i,4) = 1; % atomic number
+        atom_cor(i,1:4) = [74, 0.75,0.75,0.75]; %[size, R,G,B]
       case "C"
         atom_xyz(i,4) = 12;
         atom_cor(i,1:4) = [154, 0,0,0];
@@ -61,6 +61,9 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
       case "O"
         atom_xyz(i,4) = 16;
         atom_cor(i,1:4) = [146, 1,0,0];
+      case "Co"
+        atom_xyz(i,4) = 27;
+        atom_cor(i,1:4) = [100, 1,0,0];
       otherwise
         error ("ERRO! Novo elemento detectado. Atualizar codigo");
         atom_xyz(i,4) = -1;
