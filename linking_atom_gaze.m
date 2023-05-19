@@ -25,7 +25,6 @@ config_fator_px = 23.699; %razao entre fracao da tela e posicao em px (calculo e
 config_gauss_wdt = 0.922; %desvio padrao do config_fator_px
 %xlsx_file_name = strcat ("compiladoPorSubjects_", task(config_task), ".xlsx");
 xlsx_file_name = strcat ("tabela_de_dados_opengaze",".xlsx");
-%xyz_file_name = "convexhull/xyz coords.xlsx";
 [config_model_name,task_name,config_ref_quat] = get_task_data (config_task);
 xyz_file_name = strcat ("modelos/", config_model_name, ".xyz"); %name of .xyz file used in task
 
