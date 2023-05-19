@@ -125,30 +125,31 @@ if (config_input_data == 1)
   printf(strcat(xlsx_file_name,"; "));
   Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
   % read xy gazepoint coordinates in screen fraction (needs to transform to pixels in config_pre_calc)
-  printf("one more tab; ");
+  printf("one more tab... ");
   gaze(:,1:2) = xlsread (xlsx_file_name, task_name, "D2:E9000" );
-  printf("concluido!");toc();  %Time spent ~ 10 s
+  printf("done! ");toc();  %Time spent ~ 10 s
 endif
 
 if (config_pre_calc == 1)
-  tic();printf("Calculando... ");
-  ##encontrar centro de rotacao (boundingbox do jmol)
-  atom_xyz(:,1:3) = normalize_jmol_rot_center (atom_xyz); %centralizado aqui!
-  ## gerar matriz de rotacao pelo tempo com base nas coordenadas Q4 das rotacoes registradas
-  for t = 1: size (Q,1) %criando matriz de rotacao para cada frame
+  tic();printf("Calculating... ");
+  % find rotation center (jmol boundingbox)
+  atom_xyz(:,1:3) = normalize_jmol_rot_center (atom_xyz); %centralized here!
+  % create array of rotation matrix in time from quaternions
+  for t = 1: size (Q,1) %create rotation matrix for each frame
+    %rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %DEBUG: this should rotate in 90degrees
     rot_vector(1:3,1:3,t) = rot_matrix (Q(t,4),Q(t,1),Q(t,2),Q(t,3));
-    %rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %teste de rotacao em 90graus
-    for a=1:atom_count     %para cada atomo, aplicar a matriz de rotacao
-      %atom_xyzRot(a,1:3,t) = atom_xyz(a,1:3)*rot_vector(1:3,1:3,t); %1x3 * 3x3 = 1x3 (ESSE INVERTE A ROTACAO)
-      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ; %3x3 * 3x1 = 3x1 (ESSE E O CERTO) {rotacoes centralizadas no centro de rotacoes}
+    for a=1:atom_count     %apply rotation for each atom.
+      %3x3 * 3x1 = 3x1 {rotation center at 0,0,0}
+      % this is the right order. changing it will give reversed results!
+      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
     endfor
   endfor
-  for a=1:atom_count %gerar matriz de atomos do modelo referencia
+  for a=1:atom_count %create atom matrix of the reference model
     ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_quat(1),config_ref_quat(2),config_ref_quat(3),config_ref_quat(4))*atom_xyz(a,1:3)')' ;
   endfor
 
-  ##Gerar gaze coords. em pixel na tela (gaze_px), partindo do centro da referencia
-  ##(gaze_ref_px) e do centro do canvas (gaze_cvs_px)
+  % Generate gaze coordinates in screen px (gaze_px), from reference center
+  %(gaze_ref_px) and from canvas center (gaze_cvs_px)
   gaze_px = gaze(:,1:2).*[config_screen_size];
   gaze_ref_px = gaze_px - config_ref_center_px;
   gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px;
