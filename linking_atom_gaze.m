@@ -39,15 +39,16 @@ function R = rot_matrix (qr,qi,qj,qk, s = 1) %no .xlsx esta como qi,qj,qk,qr.
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
 
-% transforma axis-angle em quaternio || in:(x,y,z,angle in degrees) || out:[qw,qx,qy,qz] (qw is real part)
+% axis-angle to quaternions || in:(x,y,z,angle in degrees) || out:[qw,qx,qy,qz] (qw is real part)
 function Q = axangle2quat (x,y,z,angle) %Q = [qw,qx,qy,qz].
   Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
 endfunction
 
-% codificar atomos por elemento|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+% codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+%used in some graph renderings at the end of this script
 function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
   for i = 1:atom_count
-    switch ( strvcat(atom_elem(i)) )  %strvcat extrai a string de um cell array
+    switch ( strvcat(atom_elem(i)) )  %strvcat extracts a string from a cell array
       case "H"
         atom_xyz(i,4) = 1;
         atom_cor(i,1:4) = [74, 0.75,0.75,0.75];
@@ -68,9 +69,9 @@ function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
   endfor
 endfunction
 
-% normaliza xyz atom coords 0,0,0 (at the center of jmol boundingbox )
+% normalize xyz atom coords 0,0,0 (at the center of jmol boundingbox )
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
-  % get max and min x,y,z coords. from the atom_xyz array.
+  % get max and min x,y,z coords from the atom_xyz array.
   % These are the boundingbox extremities in jmol.
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
@@ -82,7 +83,6 @@ endfunction
 % returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
 function [atom_count,elem,atom_coords] = get_xyz_data (filename)
   fid = fopen(filename, 'r');
-
   % Read the number of atoms from the first line of the file
   line = fgetl(fid);
   atom_count = str2num(line);
