@@ -45,7 +45,7 @@ endfunction
 
 % codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 %used in some graph renderings at the end of this script
-function atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem)
+function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  %strvcat extracts a string from a cell array
       case "H"
@@ -119,12 +119,12 @@ if (config_input_data == 1)
   %take count, element and xyz coordinates of each atom from xyz_file_name.xyz file
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   %create color vector for atoms
-  printf(" get colors...");
-  atom_cor = gerar_vetor_cores (atom_count, atom_xyz, atom_elem);
+  printf(" get color vector...");
+  atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
   % read quaternions from xlsx_file_name.xlsx file [i j k r]
   printf(strcat(xlsx_file_name,"; "));
   Q(:,1:4) = xlsread (xlsx_file_name, task_name, "AN2:AQ9000" );
-  % ler coordenadas x,y do gazepoint fracao da tela (precisa transformar para pixels no config_pre_calc)
+  % read xy gazepoint coordinates in screen fraction (needs to transform to pixels in config_pre_calc)
   printf("one more tab; ");
   gaze(:,1:2) = xlsread (xlsx_file_name, task_name, "D2:E9000" );
   printf("concluido!");toc();  %Time spent ~ 10 s
