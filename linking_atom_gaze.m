@@ -84,9 +84,10 @@ endfunction
 
 % returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
 function [atom_count,elem,atom_coords] = get_xyz_data (filename)
-  printf(strcat("Opening .xyz file: ",filename));
+  printf(strcat("Opening .xyz file: ",filename,"... "));
   fid = fopen(filename, 'r');
   % Read the number of atoms from the first line of the file
+  printf(" reading...");
   line = fgetl(fid);
   atom_count = str2num(line);
 
@@ -103,6 +104,7 @@ function [atom_count,elem,atom_coords] = get_xyz_data (filename)
     atom_coords(i, :) = str2double(line_data(2:4));
   end
   fclose(fid);
+  printf(" sucess! \n");
 endfunction
 
 
@@ -114,9 +116,7 @@ if (config_input_data == 1)
   %clean all variables except those below
   clear -x config* subject *name
   tic();
-  printf("Lendo arquivos... ");
   %take count, element and xyz coordinates of each atom from xyz_file_name.xyz file
-  printf(strcat(xyz_file_name,"; "));
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   %create color vector for atoms
   printf(" get colors...");
