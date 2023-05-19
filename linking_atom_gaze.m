@@ -79,8 +79,8 @@ function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
   max_xyz = max(atom_xyz(:,1:3));
   min_xyz = min(atom_xyz(:,1:3));
   % normalize position of entire array
-  correcao_centro = (max_xyz+min_xyz)/2;
-  norm_atom_xyz = atom_xyz(:,1:3) - correcao_centro;
+  normalization_center = (max_xyz+min_xyz)/2;
+  norm_atom_xyz = atom_xyz(:,1:3) - normalization_center;
 endfunction
 
 % returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
