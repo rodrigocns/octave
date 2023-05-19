@@ -154,11 +154,11 @@ if (config_pre_calc == 1)
   gaze_ref_px = gaze_px - config_ref_center_px;
   gaze_cvs_px(:,1:2) = gaze_px - config_cvs_center_px;
 
-  ## gerar projecao xy dos atomos rotacionados pelas matrizes no tempo
-  atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atomos, xy, frame) {centralizado canvas}
-  atom_xy_px(:,:,:) = config_fator_px*atom_xy(:,:,:); %obter pixels das coordenadas da projecao xy dos atomos {centralizado no centro de rot.}
-  %ref_atom_xy(:,1:2) = ref_atom_xyz(:,1:2); %ref_atom_xy(atomo,xy) {centralizado na ref}
-  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_fator_px; %obter pixel xy
+  % Create temporal xy projection of atoms rotated by matrices
+  atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atoms, xy, frame) {centralized canvas}
+  atom_xy_px(:,:,:) = config_fator_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
+  %ref_atom_xy(:,1:2) = ref_atom_xyz(:,1:2); %ref_atom_xy(atom,xy) {centralized in ref}
+  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_fator_px; %get pixel xy
 endif
 
 ## gerar vetor convex hull no tempo
