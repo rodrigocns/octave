@@ -82,6 +82,7 @@ endfunction
 
 % returns cell array with element symbols and xyz coordinates matrix(nx3) of atoms in .xyz file
 function [atom_count,elem,atom_coords] = get_xyz_data (filename)
+  printf(strcat("Opening .xyz file: ",filename));
   fid = fopen(filename, 'r');
   % Read the number of atoms from the first line of the file
   line = fgetl(fid);
