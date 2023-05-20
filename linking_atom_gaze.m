@@ -1,6 +1,5 @@
 pkg load io
 pkg load quaternion
-%http://jmol.sourceforge.net/demo/jssample0.html
 
 %{
  v0.9 - get ready for the manuscript
