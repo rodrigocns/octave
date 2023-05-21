@@ -1,6 +1,6 @@
 pkg load io
 clear;
-% Find data for computing the "quaternionic worm-path"
+% Find quaternion task data for computing the "quaternionic worm-path"
 %from the "filename" excel spreadsheet file of unpackaged iRT data from gsheets
 
 
@@ -16,7 +16,7 @@ raw_arr = xls2oct(xls,"data");
 
 printf("Reading done\n");
 
-% get reference data
+% get reference quaternion data
 
 for n = 1 :size(session_arr,1)
   if and( strcmp(session_arr{n,1},num2str(session_ID)), strcmp(session_arr{n,2}, task_ID) )
