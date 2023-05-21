@@ -8,7 +8,7 @@ kind of information, then it must be added using the epoch data produced from
 iRT, or changing from another epoch system into the unix epoch.
 %}
 
-clear -x raw* session_data iRT_data
+clear -exclusive *_data;
 
 % SETTINGS
 % read eyeTracking .xlsx input file
