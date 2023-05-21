@@ -88,7 +88,7 @@ endfunction
 if cfg_eyeT_input == true
   raw_eyeT_data = eyeT2oct (cfg_eyeT_input_filename);
 else
-  disp("Skipping eyeT file read. \n");
+  disp("Skipping eyeT file read.");
 endif
 
 %eyeTracking data pre-process
@@ -100,7 +100,7 @@ endif
 if cfg_iRT_input == true
   [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
 else
-  disp("Skipping iRT file read. \n");
+  disp("Skipping iRT file read.");
 endif
 
 %iRT - eyeTracking data merge
@@ -109,5 +109,5 @@ if cfg_iRT_merge == true
 
 endif
 
-%clear cfg variables
+%clear cfg variables for easier debugging
 clear cfg*
