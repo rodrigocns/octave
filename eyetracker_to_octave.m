@@ -15,18 +15,22 @@ clear -x raw* session_data iRT_data
 cfg_eyeT_input = false;
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 % (only if necessary) append a column of epoch unix data to the eyeT data array
-cfg_add_epoch_from_milliseconds = true;
+cfg_add_epoch_from_milliseconds = false;
 cfg_epoch_ms_col = 3; %time column in milliseconds used to create epoch column
 cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0 inside eyetracking data.
 % read iRT .xlsx input file
 cfg_iRT_input = false;
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 % merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
-cfg_iRT_merge = true;
+cfg_data_merge = false;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
-cfg_iRT_cols = 3:8; %range of desired data columns from task data. 5:8 is quaternion data, 3 is unix epoch
-cfg_eyeT_cols =
+cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
+cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
+% write output file from task_data
+cfg_write_output = true;
+cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
+
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data
 function raw_eyeT_data = eyeT2oct (filename)
@@ -82,7 +86,22 @@ function [matrix_quat_data,data_header] = slice_task_data (raw_arr, session_ID, 
   data_header = cell(raw_arr(1,range_of_columns));
   printf(".data sliced!\n");
 endfunction
+
+% merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
+function mergedMatrix = merge_data (eyeT_data, task_data, cfg_eyeT_cols)
+  %Find nearest indexes in eyeT_data for each time point in iRT_data
+  printf("Calculating nearest indexes.");
+  eyeT_time_col = eyeT_data(:, 1); %eyeT epoch
+  iRT_time_col = task_data(:, 1); %iRT epoch
+  [~, nearest_indices] = min(abs(eyeT_time_col - iRT_time_col'));
+  % Merge desired eyeT_data columns (cfg_eyeT_cols) into iRT_data
+  printf(".merging to task_data.");
+  mergedMatrix = [task_data, eyeT_data(nearest_indices, cfg_eyeT_cols)];
+  printf(".done!");
+endfunction
+
 %==========================
+
 %SCRIPTS
 %data checks!
 if and( exist('raw_eyeT_data', 'var')==0 , cfg_eyeT_input==false)
@@ -93,7 +112,6 @@ if and( exist('raw_iRT_data', 'var')==0 , cfg_iRT_input==false)
   warning("The iRT data source is missing! Changing cfg_iRT_input to true \n");
   cfg_iRT_input = true;
 endif
-
 %eyetracking data input
 if cfg_eyeT_input == true
   raw_eyeT_data = eyeT2oct (cfg_eyeT_input_filename);
@@ -103,7 +121,7 @@ endif
 
 %eyeTracking data pre-process
 if cfg_add_epoch_from_milliseconds == true
-  eyeT_data = horzcat( raw_eyeT_data, add_epoch (raw_eyeT_data, cfg_epoch_ms_col, cfg_epoch_anchor) );
+  eyeT_data = horzcat( add_epoch (raw_eyeT_data, cfg_epoch_ms_col, cfg_epoch_anchor) , raw_eyeT_data );
 endif
 
 %iRT data input
@@ -114,11 +132,16 @@ else
 endif
 
 %iRT - eyeTracking data merge
-if cfg_iRT_merge == true
-  % slice out desired iRT data
+if cfg_data_merge == true
+  % slice out desired iRT_data from raw_iRT_data (set desired columns in cfg_iRT_cols setting)
   task_data = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
-
+  % merge eyeT data into iRT data
+  task_data = merge_data(eyeT_data, task_data, cfg_eyeT_cols);
 endif
 
-%clear cfg variables for easier debugging
+% write output file
+if cfg_write_output == true
+  cfg_output_filename
+endif
+%clear cfg variables for cleaner debugging
 clear cfg*
