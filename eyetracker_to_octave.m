@@ -84,6 +84,15 @@ function [matrix_quat_data,data_header] = slice_task_data (raw_arr, session_ID, 
 endfunction
 %==========================
 %SCRIPTS
+%data checks!
+if and( exist('raw_eyeT_data', 'var')==0 , cfg_eyeT_input==false)
+  warning("The eyeTracking data source is missing! Changing cfg_eyeT_input to true \n");
+  cfg_eyeT_input = true;
+endif
+if and( exist('raw_iRT_data', 'var')==0 , cfg_iRT_input==false)
+  warning("The iRT data source is missing! Changing cfg_iRT_input to true \n");
+  cfg_iRT_input = true;
+endif
 %eyetracking data input
 if cfg_eyeT_input == true
   raw_eyeT_data = eyeT2oct (cfg_eyeT_input_filename);
