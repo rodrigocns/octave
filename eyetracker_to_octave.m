@@ -115,6 +115,7 @@ endif
 
 %iRT - eyeTracking data merge
 if cfg_iRT_merge == true
+  % slice out desired iRT data
   task_data = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
 
 endif
