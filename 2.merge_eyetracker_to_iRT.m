@@ -15,6 +15,7 @@ https://wiki.octave.org/IO_package
 clear -exclusive *_data;
 
 % SETTINGS
+
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = false; %slow, aprox. 1 min per 10k lines and 9 columns
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
@@ -34,6 +35,14 @@ cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epo
 % write output file from task_data
 cfg_write_output = true;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
+
+%{
+   #=========================================#
+   # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
+   #      (maybe add_epoch function if)      #
+   #      (you know what you are doing)      #
+   #=========================================#
+%}
 
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data
