@@ -87,8 +87,8 @@ endfunction
 
 %%inicializar valores
 %valores_ref = [duracao iRoT, t0 opengaze, duracao opengaze]
-val_ref(1,1:3) = [79.8,40.8895,86.8065]; %cor
-val_ref(2,1:3) = [81.2,131.384,88.506]; %cinza
+val_ref(1,1:3) = [79.8, 40.8895, 86.8065]; %cor
+val_ref(2,1:3) = [81.2, 131.384, 88.506]; %cinza
 if (config_tipo == 1)
   nome_aba_output = "cor";
 elseif (config_tipo == 2)
@@ -113,7 +113,7 @@ if (config_dados_input == 1)
   toc();
 endif
 
-%%loop do teste cor. Para cada linha:
+%merging loop script
 tic();
 for i = 1 : size(tabela,1)
   %achar posicao do melhor valor de tempo
@@ -126,6 +126,7 @@ for i = 1 : size(tabela,1)
 endfor
 toc();
 
+% Write .xlsx output file
 tic();
 if (config_table_output == 1)
   printf(cstrcat("Gravando dados da tabela ",nome_aba_output," ..."));
@@ -134,6 +135,7 @@ if (config_table_output == 1)
 endif
 toc();
 
+% plot (?)
 if (config_plot==1)
   i=2;
   while (i <= size(tabela,1))
