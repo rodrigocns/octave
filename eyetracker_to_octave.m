@@ -6,6 +6,10 @@ is the innate time used in most programming languages, especially javascript and
 HTML. If the data from your eyetracker device/software does not contain this
 kind of information, then it must be added using the epoch data produced from
 iRT, or changing from another epoch system into the unix epoch.
+
+Maybe usefull links:
+https://wiki.octave.org/IO_package
+
 %}
 
 clear -exclusive *_data;
