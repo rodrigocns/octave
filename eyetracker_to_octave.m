@@ -19,10 +19,13 @@ cfg_add_epoch_from_milliseconds = true;
 cfg_epoch_ms_col = 3;%time column in milliseconds used to create epoch column
 cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0.
 % read iRT .xlsx input file
-cfg_iRT_input = true;
+cfg_iRT_input = false;
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+% merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
+cfg_iRT_merge = true;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
+cfg_iRT_cols = 3:8; %range of desired data columns from task data. 5:8 is quaternion data, 3 is unix epoch
 
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data
@@ -52,8 +55,34 @@ function [session_arr,raw_arr] = iRT2oct (filename)
   printf(".done!");
   toc();
 endfunction
+% create data array and its header from slice of iRT data (task data) corresponding to session_ID and task_ID.
+% 'range_of_columns' is the range of the desired columns from raw_iRT_data (5:8 or 3,4,5:8)
+function [matrix_quat_data,data_header] = slice_task_data (raw_arr, session_ID, task_ID, range_of_columns)
+  printf("Slicing out task data..");
+  % find first line of the slice
+  first_line= -1; %defined outside range
+  for n = 1 :size(raw_arr,1)
+    if and( strcmp(raw_arr{n,1},num2str(session_ID)), strcmp(raw_arr{n,2}, task_ID) )
+      first_line = n;
+      printf(".first line of slice is %i.", first_line);
+      break;
+    endif
+  endfor
+  % find last line of the slice
+  last_line= -1;
+  for n = first_line : size(raw_arr,1)
+    if not( and( strcmp( raw_arr{n,1}, num2str( session_ID) ), strcmp( raw_arr{n,2}, task_ID) ))
+      last_line = n - 1;
+      printf(".last line of slice is %i.", last_line);
+      break;
+    endif
+  endfor
+  % get slice of data
+  matrix_quat_data = cell2mat( raw_arr( first_line:last_line, range_of_columns) );
+  data_header = cell(raw_arr(1,range_of_columns));
+  printf(".data sliced!\n");
+endfunction
 %==========================
-
 %SCRIPTS
 %eyetracking data input
 if cfg_eyeT_input == true
@@ -69,9 +98,15 @@ endif
 
 %iRT data input
 if cfg_iRT_input == true
-  [session_data,iRT_data] = iRT2oct (cfg_iRT_input_filename);
+  [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
 else
   disp("Skipping iRT file read. \n");
+endif
+
+%iRT - eyeTracking data merge
+if cfg_iRT_merge == true
+  task_data = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
+
 endif
 
 %clear cfg variables
