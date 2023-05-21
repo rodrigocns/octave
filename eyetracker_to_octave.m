@@ -14,10 +14,10 @@ clear -x raw* session_data iRT_data
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = false;
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
-% append a column of epoch unix data to the eyeT data array (only if necessary)
+% (only if necessary) append a column of epoch unix data to the eyeT data array
 cfg_add_epoch_from_milliseconds = true;
-cfg_epoch_ms_col = 3;%time column in milliseconds used to create epoch column
-cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0.
+cfg_epoch_ms_col = 3; %time column in milliseconds used to create epoch column
+cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0 inside eyetracking data.
 % read iRT .xlsx input file
 cfg_iRT_input = false;
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
@@ -26,7 +26,7 @@ cfg_iRT_merge = true;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_iRT_cols = 3:8; %range of desired data columns from task data. 5:8 is quaternion data, 3 is unix epoch
-
+cfg_eyeT_cols =
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data
 function raw_eyeT_data = eyeT2oct (filename)
@@ -93,6 +93,7 @@ if and( exist('raw_iRT_data', 'var')==0 , cfg_iRT_input==false)
   warning("The iRT data source is missing! Changing cfg_iRT_input to true \n");
   cfg_iRT_input = true;
 endif
+
 %eyetracking data input
 if cfg_eyeT_input == true
   raw_eyeT_data = eyeT2oct (cfg_eyeT_input_filename);
