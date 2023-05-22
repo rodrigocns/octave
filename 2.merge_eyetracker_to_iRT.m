@@ -17,23 +17,32 @@ clear -exclusive *_data;
 % SETTINGS
 
 % read eyeTracking .xlsx input file
-cfg_eyeT_input = false; %slow, aprox. 1 min per 10k lines and 9 columns
+cfg_eyeT_input = false; %slow, aprox. 1 min for 10k lines and 9 columns
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
+
 % (only if necessary) append a column of epoch unix data to the eyeT data array
 cfg_add_epoch_from_milliseconds = true;
 cfg_epoch_ms_col = 3; %time column in milliseconds used to create epoch column
 cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0 inside eyetracking data.
+
+% fix pupil data by linear interpolation (always good to leave on)
+cfg_pupil_fix = true;
+cfg_pupil_cols = [9,10]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
+cfg_pupil_missing_data = [0,-1]; % possible results of missing data to be identified and corrected
+
 % read iRT .xlsx input file
 cfg_iRT_input = false; %slow, aprox. 25 seconds for 4.5k lines and 8 columns
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+
 % merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
 cfg_data_merge = true;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
+
 % write output file from task_data
-cfg_write_output = true;
+cfg_write_output = false;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
 
 %{
@@ -46,7 +55,7 @@ cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_ses
 
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data
-function [raw_eyeT_data, eyeT_header_data] = eyeT2oct (filename)
+function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   tic();
   printf("Eyetracker data input: opening..");
   %raw_eyeT_data = xlsread (filename);
@@ -61,12 +70,51 @@ function [raw_eyeT_data, eyeT_header_data] = eyeT2oct (filename)
   printf(".done! ");
   toc();
 endfunction
-%add epoch data to a time column counting milliseconds
+% add epoch data to a time column counting milliseconds
 function epoch_column = add_epoch (raw_eyeT_data, epoch_column, epoch_anchor)
   printf("Adding epoch column..");
   epoch_column = raw_eyeT_data(:,epoch_column);
   epoch_column = epoch_column + epoch_anchor;
   printf("Done!\n");
+endfunction
+% interpolate missing data
+function interpolated_data = interpolate_missing_data (input_data, columns_to_fix, missing_data)
+  printf("Interpolating missing values.. ");
+  interpolated_data = input_data;
+  for c_i=1:numel(columns_to_fix)
+    col = columns_to_fix(c_i);
+    printf(".[col = %i]",col);
+    % find first valid value
+    first_valid_line = 1;
+    while ismember (interpolated_data(first_valid_line,col), missing_data)
+      first_valid_line++;
+    endwhile
+    printf("[1st valid line = %i].",first_valid_line);
+    % find missing values
+    for line=first_valid_line+1:size(input_data,1)
+      if ismember (interpolated_data(line,col), missing_data)
+        i=1; % amount of sequential missing values
+        while ismember (interpolated_data(line+i,col), missing_data)
+          i++;
+          % IF line+i is outside of data range, it means the last array value is missing
+          if line+i > size(interpolated_data,1)
+            % make last value equal to previous valid value and continue process
+            i--;
+            interpolated_data(line+i,col)=interpolated_data(line-1,col);
+            break;
+          endif
+        endwhile
+        %filling values
+        first_num = interpolated_data(line-1,col); %line before missing value
+        last_num = interpolated_data(line+i,col); %line with value
+        clear fix_array;
+        fix_array(1:2+i,1) = linspace(first_num, last_num, 2+i); %vertical arr w/ interpolated values
+        %printf("[%i]",line);
+        interpolated_data(line-1:line+i,col) = fix_array;
+      endif
+    endfor
+  endfor
+  printf(".values interpolated!\n");
 endfunction
 % read data from iRT .xlsx; 'session_arr' has session details, 'raw_arr' has the data bulk in a cell matrix
 function [session_arr, raw_arr] = iRT2oct (filename)
@@ -143,14 +191,20 @@ if and ( exist('raw_iRT_data', 'var') == 0 , cfg_iRT_input == false)
 endif
 %eyetracking data input (eyeT2oct)
 if cfg_eyeT_input == true
-  [raw_eyeT_data, eyeT_header_data] = eyeT2oct (cfg_eyeT_input_filename);
+  [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (cfg_eyeT_input_filename);
 else
   disp("Skipping eyeT file read.");
 endif
-%eyeTracking data pre-process: add epoch column to eyeT_data and eyeT_header_data
+% add epoch column to eyeT_data and eyeT_header_data
 if cfg_add_epoch_from_milliseconds == true
   eyeT_data = horzcat( add_epoch (raw_eyeT_data, cfg_epoch_ms_col, cfg_epoch_anchor) , raw_eyeT_data );
   eyeT_header_data = horzcat ('EyeT Epoch', raw_eyeT_header_data);
+else
+  eyeT_data = raw_eyeT_data;
+endif
+%eyeTracking data pre-process: interpolation of missing data
+if cfg_pupil_fix == true
+  eyeT_data = interpolate_missing_data (eyeT_data, cfg_pupil_cols, cfg_pupil_missing_data);
 endif
 %iRT data input
 if cfg_iRT_input == true
