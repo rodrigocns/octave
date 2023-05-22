@@ -38,8 +38,8 @@ xyz_file_name = strcat ("modelos/", config_model_name, ".xyz"); %name of .xyz fi
 
 % ===FUNCTIONS===
 
-% rot_matrix retorna matriz de rotacao {R} a partir de um quaternio {qr,qi,qj,qk}
-function R = rot_matrix (qr,qi,qj,qk, s = 1) %no .xlsx esta como qi,qj,qk,qr.
+% returns toration matrix {R} from a quaternion {qr,qi,qj,qk}
+function R = rot_matrix (qr,qi,qj,qk, s = 1) %dont forget jmol data uses this order: qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
@@ -124,7 +124,7 @@ if (config_input_data == 1)
   %clean all variables except those below
   clear -x config* subject *name
   tic();
-  %take count, element and xyz coordinates of each atom from xyz_file_name.xyz file
+  %take [number_id, element, xyz coordinates] of each atom from xyz_file_name.xyz file
   [atom_count,atom_elem,atom_xyz] = get_xyz_data(xyz_file_name);
   %create color vector for atoms
   printf(" get color vector...");
