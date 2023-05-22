@@ -46,8 +46,8 @@ function R = rot_matrix (qr,qi,qj,qk, s = 1) %dont forget jmol data uses this or
 endfunction
 
 % codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
-%used in some graph renderings at the end of this script
 function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
+  %used in some graph renderings at the end of this script
   for i = 1:atom_count
     switch ( strvcat(atom_elem(i)) )  %strvcat extracts a string from a cell array
       case "H"
