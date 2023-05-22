@@ -45,12 +45,6 @@ function R = rot_matrix (qr,qi,qj,qk, s = 1) %dont forget jmol data uses this or
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
 
-% axis-angle to quaternions || in:(x,y,z,angle in degrees) || out:[qw,qx,qy,qz] (qw is real part)
-% PROBABLY WONT NEED THIS ANYMORE!
-function Q = axangle2quat (x,y,z,angle) %Q = [qw,qx,qy,qz].
-  Q = [ cos(deg2rad(angle/2)), x*sin(deg2rad(angle/2)), y*sin(deg2rad(angle/2)), z*sin(deg2rad(angle/2))];
-endfunction
-
 % codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 %used in some graph renderings at the end of this script
 function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
