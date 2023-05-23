@@ -14,7 +14,7 @@ function for any plot to be rendered at the end of the script, but it is not use
 
 % ===CONFIGS===
 task = ["C","G","I"];      %identifiers of each task. Rename accordingly.
-config_task_index =     2; %Choose what task will be used from "task" array
+config_task_index =     2; %Choose what task will be used from "task" array, above
 config_input_data =     1; %1 to read .xlsx input files
 config_pre_calc =       1; %1 to execute precalculations (needed for most functions)
 config_convhull =       0; %1 to calculate convexhull of the atoms xy-projection in each time frame
@@ -39,7 +39,8 @@ xyz_file_name = strcat ("modelos/", config_model_name, ".xyz"); %name of .xyz fi
 % ===FUNCTIONS===
 
 % returns toration matrix {R} from a quaternion {qr,qi,qj,qk}
-function R = rot_matrix (qr,qi,qj,qk, s = 1) %dont forget jmol data uses this order: qi,qj,qk,qr.
+function R = rot_matrix (qr,qi,qj,qk, s = 1)
+  %dont forget jmol data uses this order: qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
@@ -73,7 +74,7 @@ function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
   endfor
 endfunction
 
-% normalize xyz atom coords 0,0,0 (at the center of jmol boundingbox )
+% normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
   % get max and min x,y,z coords from the atom_xyz array.
   % These are the boundingbox extremities in jmol.
