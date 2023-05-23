@@ -148,7 +148,8 @@ if (config_pre_calc == 1)
       atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
     endfor
   endfor
-  for a=1:atom_count %create atom matrix of the reference model
+  %create atom matrix of the reference model
+  for a=1:atom_count
     ref_atom_xyz(a,1:3) = (rot_matrix (config_ref_quat(1),config_ref_quat(2),config_ref_quat(3),config_ref_quat(4))*atom_xyz(a,1:3)')' ;
   endfor
 
