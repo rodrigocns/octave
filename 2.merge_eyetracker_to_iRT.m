@@ -48,6 +48,7 @@ cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_ses
 
 % read .xyz file with atom data about the model used based on values in session_data
 cfg_xyz_input = true;
+cfg_xyz_column_name = "modelName"; % name of the column to look for the value
 
 
 
@@ -183,19 +184,19 @@ function writeOutput (filename, header, task_data)
   [xls_merged] = xlsclose ( xls_merged);
   printf(".done!"); toc();
 endfunction
-% find correct modelName in session_data using session_ID and task_ID pair (CASE SENSITIVE!)
-function modelName = get_modelName (session_data, session_ID, task_ID)
-  % find column index of modelName
-  columnIndex = find(strcmp(session_data(1,:), 'modelName'), 1);
-  % find row index of modelName
+% find correct value in session_data cell_matrix using value_header, session_ID and task_ID pair (CASE SENSITIVE!)
+function value = get_session_data_val (value_header, session_data, session_ID, task_ID)
+  % find column index of value
+  columnIndex = find(strcmp(session_data(1,:), value_header), 1);
+  % find row index of value
   for row = 1 :size(session_data,1)
     if and (strcmp (session_data{row,1}, num2str (session_ID)), strcmp (session_data{row,2}, task_ID) )
       rowIndex = row;
       break;
     endif
   endfor
-  modelName = session_data {rowIndex, columnIndex};
-  printf (strcat ("modelName is ",modelName) );
+  value = session_data {rowIndex, columnIndex};
+  printf (strcat (num2str(value_header)," : ",value) );
 endfunction
 % normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
@@ -288,8 +289,10 @@ if cfg_write_output == true
 endif
 % xyz data input
 if cfg_xyz_input == true
-  model_name = get_modelName (session_data, cfg_iRT_sessionID, cfg_iRT_taskID)
-  [atom_count, atom_elem, atom_xyz] = get_xyz_data (strcat ("models/", model_name) );
+  % get model_file_name used in the chosen session/task
+  model_file_name = get_session_data_val (cfg_xyz_column_name, session_data, cfg_iRT_sessionID, cfg_iRT_taskID)
+  % read file content
+  [atom_count, atom_elem, atom_xyz] = get_xyz_data (strcat ("models/", model_file_name) );
   % normalize atom_xyz center of rotation to 0,0,0
   atom_xyz = normalize_jmol_rot_center (atom_xyz);
 endif
