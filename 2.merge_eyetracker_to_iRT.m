@@ -190,7 +190,7 @@ endfunction
 % find correct value in session_data cell_matrix using value_header, session_ID and task_ID pair (CASE SENSITIVE!)
 function value = get_session_data_val (value_header, session_data, session_ID, task_ID)
   % find row index of value
-  printf("Find value of session data: ");
+  printf("Find session data value: ");
   for row = 1 :size(session_data,1)
     if and (strcmp (session_data{row,1}, num2str (session_ID)), strcmp (session_data{row,2}, task_ID) )
       rowIndex = row;
@@ -246,6 +246,8 @@ function R = rot_matrix (qi,qj,qk,qr, s = 1)
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
+
+% XXX
 %==========================
 
 %SCRIPTS
@@ -328,4 +330,4 @@ if cfg_atom_matrix == true
   endfor
 endif
 %clear cfg variables for cleaner debugging
-clear cfg*
+%clear cfg*
