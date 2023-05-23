@@ -50,7 +50,10 @@ cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_ses
 cfg_xyz_input = true;
 cfg_xyz_column_name = "modelName"; % name of the column to look for the value
 
-
+% calculate temporal array of rotated atoms
+cfg_atom_matrix = true;
+cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
+cfg_atom_matrix_ref_col_names = {"ref_i","ref_j","ref_k","ref_theta"}; % name of the columns to look for the reference quaternion values inside session_data
 
 %{
    #=========================================#
@@ -186,17 +189,21 @@ function writeOutput (filename, header, task_data)
 endfunction
 % find correct value in session_data cell_matrix using value_header, session_ID and task_ID pair (CASE SENSITIVE!)
 function value = get_session_data_val (value_header, session_data, session_ID, task_ID)
-  % find column index of value
-  columnIndex = find(strcmp(session_data(1,:), value_header), 1);
   % find row index of value
+  printf("Find value of session data: ");
   for row = 1 :size(session_data,1)
     if and (strcmp (session_data{row,1}, num2str (session_ID)), strcmp (session_data{row,2}, task_ID) )
       rowIndex = row;
       break;
     endif
   endfor
+  printf("[row=%i]",rowIndex);
+  % find column index of value
+  columnIndex = find(strcmp(session_data(1,:), value_header), 1);
+  printf("[col=%i]",columnIndex);
+  % get value
   value = session_data {rowIndex, columnIndex};
-  printf (strcat (num2str(value_header)," : ",value) );
+  printf (strcat ("[",num2str(value_header),":",num2str(value),"]\n") );
 endfunction
 % normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
@@ -296,6 +303,29 @@ if cfg_xyz_input == true
   % normalize atom_xyz center of rotation to 0,0,0
   atom_xyz = normalize_jmol_rot_center (atom_xyz);
 endif
-
+% create atom matrix (temporal and reference) from xyz coordinates rotated acording to quaternions in task_data
+if cfg_atom_matrix == true
+  % assign array for quaternions data (temporal and reference)
+  Q = task_data(:,cfg_atom_matrix_quat_cols);
+  % create rotation matrix for each frame (rot_vector)
+  for t = 1: size (Q,1)
+    % rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %DEBUG: this line should rotate in 90degrees
+    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,1), Q(t,2), Q(t,3), Q(t,4));
+    % apply rotation for each atom.
+    for a = 1:atom_count
+      % 3x3 * 3x1 = 3x1 {rotation center at 0,0,0}
+      % this is the right order. changing it will give reversed results!
+      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
+    endfor
+  endfor
+  % create atom matrix of the reference model
+  Q_ref = zeros(1,4);
+  for i=1:4
+    Q_ref(1,i) = get_session_data_val (cfg_atom_matrix_ref_col_names{i}, session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
+  endfor
+  for a=1:atom_count
+    ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
+  endfor
+endif
 %clear cfg variables for cleaner debugging
 clear cfg*
