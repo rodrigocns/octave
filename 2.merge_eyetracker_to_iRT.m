@@ -49,11 +49,15 @@ cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_ses
 % read .xyz file with atom data about the model used based on values in session_data
 cfg_xyz_input = true;
 cfg_xyz_column_name = "modelName"; % name of the column to look for the value
+cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (image#1)
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
 cfg_atom_matrix_ref_col_names = {"ref_i","ref_j","ref_k","ref_theta"}; % name of the columns to look for the reference quaternion values inside session_data
+cfg_atom_matrix_plot_ref = true; %2d scatter of the reference model (image#2)
+cfg_atom_matrix_plot = true; %2d scatter of the interactive model at a set time (image#3)
+cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (image#3)
 
 %{
    #=========================================#
@@ -205,6 +209,33 @@ function value = get_session_data_val (value_header, session_data, session_ID, t
   value = session_data {rowIndex, columnIndex};
   printf (strcat ("[",num2str(value_header),":",num2str(value),"]\n") );
 endfunction
+% codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
+function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
+  %used in some graph renderings at the end of this script
+  for i = 1:atom_count
+    switch ( strvcat(atom_elem(i)) )  %strvcat extracts a string from a cell array
+      case "H"
+        atom_xyz(i,4) = 1; % atomic number
+        atom_cor(i,1:4) = [74, 0.75,0.75,0.75]; %[size, R,G,B]
+      case "C"
+        atom_xyz(i,4) = 12;
+        atom_cor(i,1:4) = [154, 0,0,0];
+      case "N"
+        atom_xyz(i,4) = 14;
+        atom_cor(i,1:4) = [140, 0,0,1];
+      case "O"
+        atom_xyz(i,4) = 16;
+        atom_cor(i,1:4) = [146, 1,0,0];
+      case "Co"
+        atom_xyz(i,4) = 27;
+        atom_cor(i,1:4) = [100, 1,0,0];
+      otherwise
+        error ("ERRO! Novo elemento detectado. Atualizar codigo");
+        atom_xyz(i,4) = -1;
+        atom_cor(i,1:4) = [20, 0,1,0];
+    endswitch
+  endfor
+endfunction
 % normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
   % get max and min x,y,z coords from the atom_xyz array.
@@ -304,6 +335,15 @@ if cfg_xyz_input == true
   [atom_count, atom_elem, atom_xyz] = get_xyz_data (strcat ("models/", model_file_name) );
   % normalize atom_xyz center of rotation to 0,0,0
   atom_xyz = normalize_jmol_rot_center (atom_xyz);
+  %3D scatter of vertices/atoms without rotation
+  if cfg_xyz_plot==true
+    atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
+    figure (1);
+    scatter3 (atom_xyz(:,1), atom_xyz(:,2), atom_xyz(:,3), atom_cor(:,1), atom_cor(:,2:4));
+    title ("3D Scatter of vertices");
+    axis ("square", "equal");
+    xlabel("x"); ylabel("y"); zlabel("z");
+  endif
 endif
 % create atom matrix (temporal and reference) from xyz coordinates rotated acording to quaternions in task_data
 if cfg_atom_matrix == true
@@ -320,6 +360,18 @@ if cfg_atom_matrix == true
       atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
     endfor
   endfor
+  %plot above matrix in 2D at time set as cfg_atom_matrix_plot_t
+  if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atom_xyzRot,3) )
+    warning("The chosen frame index %i is outside the matrix range. Choose a reasonable frame index");
+  else
+    atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
+    figure (2);
+    scatter (atom_xyzRot(:,1,cfg_atom_matrix_plot_t), atom_xyzRot(:,2,cfg_atom_matrix_plot_t), atom_cor(:,1), atom_cor(:,2:4));
+    %title ( strcat ("2D Scatter of vertices in interactive model at time=", num2str(cfg_atom_matrix_plot_t) );
+    axis ("square", "equal");
+    xlabel("x"); ylabel("y");
+  endif
+
   % create atom matrix of the reference model
   Q_ref = zeros(1,4);
   for i=1:4
@@ -328,6 +380,18 @@ if cfg_atom_matrix == true
   for a=1:atom_count
     ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
   endfor
+  %plot above matrix in 2D
+  if cfg_atom_matrix_plot_ref == true
+    atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
+    figure (3);
+    scatter (ref_atom_xyz(:,1), ref_atom_xyz(:,2), atom_cor(:,1), atom_cor(:,2:4));
+    title ("2D Scatter of vertices in reference model");
+    axis ("square", "equal");
+    xlabel("x"); ylabel("y");
+  endif
 endif
+
+
+
 %clear cfg variables for cleaner debugging
 %clear cfg*
