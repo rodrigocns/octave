@@ -45,6 +45,11 @@ cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epo
 cfg_write_output = false;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
 
+% read .xyz file with atom data about the model used based on values in session_data
+cfg_xyz_input = true;
+
+
+
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
@@ -177,6 +182,54 @@ function writeOutput (filename, header, task_data)
   [xls_merged] = xlsclose ( xls_merged);
   printf(".done!"); toc();
 endfunction
+% find correct modelName in session_data using session_ID and task_ID pair (CASE SENSITIVE!)
+function modelName = get_modelName (session_data, session_ID, task_ID)
+  % find column index of modelName
+  columnIndex = find(strcmp(session_data(1,:), 'modelName'), 1);
+  % find row index of modelName
+  for row = 1 :size(session_data,1)
+    if and (strcmp (session_data{row,1}, num2str (session_ID)), strcmp (session_data{row,2}, task_ID) )
+      rowIndex = row;
+      break;
+    endif
+  endfor
+  modelName = session_data {rowIndex, columnIndex};
+  printf (strcat ("modelName is ",modelName) );
+endfunction
+% normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
+function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
+  % get max and min x,y,z coords from the atom_xyz array.
+  % These are the boundingbox extremities in jmol.
+  max_xyz = max(atom_xyz(:,1:3));
+  min_xyz = min(atom_xyz(:,1:3));
+  % normalize position of entire array
+  normalization_center = (max_xyz+min_xyz)/2;
+  norm_atom_xyz = atom_xyz(:,1:3) - normalization_center;
+endfunction
+% read .xyz file with atom data about the model used.
+function [atom_count, elem, atom_coords] = get_xyz_data (filename)
+  printf( strcat("Opening .xyz file: ", filename, "... ") );
+  fid = fopen(filename, 'r');
+  % Read the number of atoms from the first line of the file
+  printf(" reading...");
+  line = fgetl(fid);
+  atom_count = str2num(line);
+
+  % Pre-allocate arrays for the element symbols and coordinates
+  elem = cell(atom_count, 1);
+  atom_coords = zeros(atom_count, 3);
+
+  % Loop over each line of the file after the first line
+  line = fgetl(fid);
+  for i = 1:atom_count
+    line = fgetl(fid);
+    line_data = strsplit(line);
+    elem{i} = line_data{1};
+    atom_coords(i, :) = str2double(line_data(2:4));
+  end
+  fclose(fid);
+  printf(" sucess! \n");
+endfunction
 %==========================
 
 %SCRIPTS
@@ -225,5 +278,13 @@ endif
 if cfg_write_output == true
   writeOutput (cfg_output_filename, merged_header_data, task_data);
 endif
+% xyz data input
+if cfg_xyz_input == true
+  model_name = get_modelName (session_data, cfg_iRT_sessionID, cfg_iRT_taskID)
+  [atom_count, atom_elem, atom_xyz] = get_xyz_data (strcat ("models/", model_name) );
+  % normalize atom_xyz center of rotation to 0,0,0
+  atom_xyz = normalize_jmol_rot_center (atom_xyz);
+endif
+
 %clear cfg variables for cleaner debugging
 clear cfg*
