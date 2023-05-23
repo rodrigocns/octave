@@ -9,12 +9,12 @@ iRT, or changing from another epoch system into the unix epoch.
 
 Maybe usefull links:
 https://wiki.octave.org/IO_package
-
 %}
 
 clear -exclusive *_data;
 
 % SETTINGS
+% leave 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = false; %slow, aprox. 1 min for 10k lines and 9 columns
@@ -41,7 +41,7 @@ cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
 
-% write output file from task_data
+% WRITE output file from task_data
 cfg_write_output = false;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
 
@@ -54,7 +54,7 @@ cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_ses
 %}
 
 %FUNCTIONS
-% recognize input file format and reads eyeTracker data
+% recognize input file format and reads eyeTracker data (eyeT_data)
 function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   tic();
   printf("Eyetracker data input: opening..");
@@ -77,7 +77,7 @@ function epoch_column = add_epoch (raw_eyeT_data, epoch_column, epoch_anchor)
   epoch_column = epoch_column + epoch_anchor;
   printf("Done!\n");
 endfunction
-% interpolate missing data
+% interpolate missing eyeT_data
 function interpolated_data = interpolate_missing_data (input_data, columns_to_fix, missing_data)
   printf("Interpolating missing values.. ");
   interpolated_data = input_data;
@@ -180,7 +180,7 @@ endfunction
 %==========================
 
 %SCRIPTS
-%data checks!
+%data checks for the slowest functions!
 if and ( exist('raw_eyeT_data', 'var') == 0 , cfg_eyeT_input == false)
   warning("The eyeTracking data source is missing! Changing cfg_eyeT_input to true \n");
   cfg_eyeT_input = true;
@@ -221,7 +221,7 @@ if cfg_data_merge == true
   % merge headers
   merged_header_data = horzcat(iRT_header_data, eyeT_header_data(cfg_eyeT_cols));
 endif
-% write output file
+% WRITE output file
 if cfg_write_output == true
   writeOutput (cfg_output_filename, merged_header_data, task_data);
 endif
