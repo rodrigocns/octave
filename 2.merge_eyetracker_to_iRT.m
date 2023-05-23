@@ -11,6 +11,7 @@ Maybe usefull links:
 https://wiki.octave.org/IO_package
 %}
 
+% clear all but the slowest variables to obtain
 clear -exclusive *_data;
 
 % SETTINGS
@@ -53,7 +54,7 @@ cfg_xyz_input = true;
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
-   #      (maybe add_epoch function if)      #
+   #     (maybe add_epoch() function if)     #
    #      (you know what you are doing)      #
    #=========================================#
 %}
