@@ -230,6 +230,13 @@ function [atom_count, elem, atom_coords] = get_xyz_data (filename)
   fclose(fid);
   printf(" sucess! \n");
 endfunction
+% returns toration matrix {R} from a quaternion {i,j,k,real}
+function R = rot_matrix (qi,qj,qk,qr, s = 1)
+  % real component is last because jmol data uses this order: qi,qj,qk,qr.
+  R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
+      2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
+      2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
+endfunction
 %==========================
 
 %SCRIPTS
