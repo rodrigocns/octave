@@ -26,7 +26,7 @@ cfg_add_epoch_from_milliseconds = true;
 cfg_epoch_ms_col = 3; %time column in milliseconds used to create epoch column
 cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0 inside eyetracking data.
 
-% fix pupil data by linear interpolation (always good to leave on)
+% fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
 cfg_pupil_fix = true;
 cfg_pupil_cols = [9,10]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
 cfg_pupil_missing_data = [0,-1]; % possible results of missing data to be identified and corrected
@@ -36,7 +36,7 @@ cfg_iRT_input = false; %slow, aprox. 25 seconds for 4.5k lines and 8 columns
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 
 % merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
-cfg_data_merge = true;
+cfg_data_merge = false;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
@@ -46,19 +46,25 @@ cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epo
 cfg_write_output = false;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
 
-% read .xyz file with atom data about the model used based on values in session_data
+% read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
-cfg_xyz_column_name = "modelName"; % name of the column to look for the value
+cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
 cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (image#1)
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
-cfg_atom_matrix_ref_col_names = {"ref_i","ref_j","ref_k","ref_theta"}; % name of the columns to look for the reference quaternion values inside session_data
-cfg_atom_matrix_plot_ref = true; %2d scatter of the reference model (image#2)
+cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
+cfg_atom_matrix_ref_plot = true; %2d scatter of the reference model (image#2)
 cfg_atom_matrix_plot = true; %2d scatter of the interactive model at a set time (image#3)
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (image#3)
 
+% calculate gaze related things
+cfg_gaze_matrix = false;
+cfg_gaze_matrix_cols = [10,11]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
+cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
+cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
+cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
@@ -95,6 +101,7 @@ endfunction
 function interpolated_data = interpolate_missing_data (input_data, columns_to_fix, missing_data)
   printf("Interpolating missing values.. ");
   interpolated_data = input_data;
+  % loop for each column
   for c_i=1:numel(columns_to_fix)
     col = columns_to_fix(c_i);
     printf(".[col = %i]",col);
@@ -104,7 +111,7 @@ function interpolated_data = interpolate_missing_data (input_data, columns_to_fi
       first_valid_line++;
     endwhile
     printf("[1st valid line = %i].",first_valid_line);
-    % find missing values
+    % find missing values beyond 1st valid line/value
     for line=first_valid_line+1:size(input_data,1)
       if ismember (interpolated_data(line,col), missing_data)
         i=1; % amount of sequential missing values
@@ -191,23 +198,14 @@ function writeOutput (filename, header, task_data)
   [xls_merged] = xlsclose ( xls_merged);
   printf(".done!"); toc();
 endfunction
-% find correct value in session_data cell_matrix using value_header, session_ID and task_ID pair (CASE SENSITIVE!)
-function value = get_session_data_val (value_header, session_data, session_ID, task_ID)
-  % find row index of value
-  printf("Find session data value: ");
+% get rowIndex of session/task pair in session_data.
+function rowIndex = get_session_row (session_data, session_ID, task_ID)
   for row = 1 :size(session_data,1)
     if and (strcmp (session_data{row,1}, num2str (session_ID)), strcmp (session_data{row,2}, task_ID) )
       rowIndex = row;
       break;
     endif
   endfor
-  printf("[row=%i]",rowIndex);
-  % find column index of value
-  columnIndex = find(strcmp(session_data(1,:), value_header), 1);
-  printf("[col=%i]",columnIndex);
-  % get value
-  value = session_data {rowIndex, columnIndex};
-  printf (strcat ("[",num2str(value_header),":",num2str(value),"]\n") );
 endfunction
 % codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
@@ -270,7 +268,7 @@ function [atom_count, elem, atom_coords] = get_xyz_data (filename)
   fclose(fid);
   printf(" sucess! \n");
 endfunction
-% returns toration matrix {R} from a quaternion {i,j,k,real}
+% returns rotation matrix {R} from a quaternion {i,j,k,real}
 function R = rot_matrix (qi,qj,qk,qr, s = 1)
   % real component is last because jmol data uses this order: qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
@@ -278,6 +276,48 @@ function R = rot_matrix (qi,qj,qk,qr, s = 1)
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
 
+% rotates atom_xyz atom matrix in time based on the interactive model quaternions from task_data matrix
+function atom_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_xyz)
+  % copy quaternions from interactive model
+  Q = task_data(:,atom_matrix_quat_cols);
+  % create rotation matrix for each frame (rot_vector)
+  for t = 1: size (Q,1)
+    % rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %DEBUG: this matrix should rotate atoms in 90degrees
+    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,1), Q(t,2), Q(t,3), Q(t,4));
+    % apply rotation for each atom.
+    for a = 1:size(atom_xyz,1)
+      % 3x3 * 3x1 = 3x1 {rotation center at 0,0,0}
+      % this is the right order. changing it will give reversed results!
+      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
+    endfor
+  endfor
+endfunction
+% rotates atom_xyz atom matrix based on the reference model quaternion from session_data
+function ref_atom_xyz = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz)
+  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
+  for a = 1:size(atom_xyz,1);
+    ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
+  endfor
+endfunction
+% gaze functions
+function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, session_data, row_index, scrSize_cols, cvsRef_cols, cvsInt_cols)
+  row_index = 5;
+  screenSize = cell2mat (session_data (row_index,cfg_gaze_scrSize_cols) );
+  canvasRef = cell2mat (session_data (row_index,cvsRef_cols) );
+  canvasInt = cell2mat (session_data (row_index,cvsInt_cols) );
+  canvasRef_center = [ (canvasRef(2) + canvasRef(4) )/2 , (canvasRef(1) + canvasRef(3) )/2 ];
+  canvasInt_center = [ (canvasInt(2) + canvasInt(4) )/2 , (canvasInt(1) + canvasInt(3) )/2 ];
+  %config_ref_center_px = [211,376]; %TBD
+  %config_cvs_center_px = [615,379]; %TBD
+
+  gaze_px = task_data (:,gaze_matrix_cols);
+  %gaze_px = gaze(:,1:2).*[config_screen_size]; %probably will only use if gaze xy is not in pixels
+  gaze_ref_px = gaze_px - canvasRef_center;
+  gaze_cvs_px = gaze_px - canvasInt_center;
+
+  atom_xy_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
+  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_factor_px; %get pixel xy
+endfunction
 % XXX
 %==========================
 
@@ -297,7 +337,7 @@ if cfg_eyeT_input == true
 else
   disp("Skipping eyeT file read.");
 endif
-% add epoch column to eyeT_data and eyeT_header_data
+% create eyeT_data and eyeT_header_data from respective raw data by adding epoch column to them
 if cfg_add_epoch_from_milliseconds == true
   eyeT_data = horzcat( add_epoch (raw_eyeT_data, cfg_epoch_ms_col, cfg_epoch_anchor) , raw_eyeT_data );
   eyeT_header_data = horzcat ('EyeT Epoch', raw_eyeT_header_data);
@@ -308,11 +348,13 @@ endif
 if cfg_pupil_fix == true
   eyeT_data = interpolate_missing_data (eyeT_data, cfg_pupil_cols, cfg_pupil_missing_data);
 endif
-%iRT data input
+%iRT data input (calculates session_row either way
 if cfg_iRT_input == true
   [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
 else
   disp("Skipping iRT file read.");
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
 endif
 %iRT - eyeTracking data merge. Headers included
 if cfg_data_merge == true
@@ -330,7 +372,8 @@ endif
 % xyz data input
 if cfg_xyz_input == true
   % get model_file_name used in the chosen session/task
-  model_file_name = get_session_data_val (cfg_xyz_column_name, session_data, cfg_iRT_sessionID, cfg_iRT_taskID)
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
+  model_file_name = cell2mat( session_data(session_row,cfg_xyz_col) );
   % read file content
   [atom_count, atom_elem, atom_xyz] = get_xyz_data (strcat ("models/", model_file_name) );
   % normalize atom_xyz center of rotation to 0,0,0
@@ -341,25 +384,15 @@ if cfg_xyz_input == true
     figure (1);
     scatter3 (atom_xyz(:,1), atom_xyz(:,2), atom_xyz(:,3), atom_cor(:,1), atom_cor(:,2:4));
     title ("3D Scatter of vertices");
-    axis ("square", "equal");
+    axis ("equal");
     xlabel("x"); ylabel("y"); zlabel("z");
   endif
 endif
+
+
 % create atom matrix (temporal and reference) from xyz coordinates rotated acording to quaternions in task_data
 if cfg_atom_matrix == true
-  % assign array for quaternions data (temporal and reference)
-  Q = task_data(:,cfg_atom_matrix_quat_cols);
-  % create rotation matrix for each frame (rot_vector)
-  for t = 1: size (Q,1)
-    % rot_vector(1:3,1:3,1) = [0,1,0;-1,0,0;0,0,1];   %DEBUG: this line should rotate in 90degrees
-    rot_vector(1:3,1:3,t) = rot_matrix (Q(t,1), Q(t,2), Q(t,3), Q(t,4));
-    % apply rotation for each atom.
-    for a = 1:atom_count
-      % 3x3 * 3x1 = 3x1 {rotation center at 0,0,0}
-      % this is the right order. changing it will give reversed results!
-      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
-    endfor
-  endfor
+  atom_xyzRot = rotate_atom_xyz (task_data, cfg_atom_matrix_quat_cols, atom_xyz);
   %plot above matrix in 2D at time set as cfg_atom_matrix_plot_t
   if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atom_xyzRot,3) )
     warning("The chosen frame index %i is outside the matrix range. Choose a reasonable frame index");
@@ -367,31 +400,33 @@ if cfg_atom_matrix == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (2);
     scatter (atom_xyzRot(:,1,cfg_atom_matrix_plot_t), atom_xyzRot(:,2,cfg_atom_matrix_plot_t), atom_cor(:,1), atom_cor(:,2:4));
-    %title ( strcat ("2D Scatter of vertices in interactive model at time=", num2str(cfg_atom_matrix_plot_t) );
-    axis ("square", "equal");
+    title ( strcat ("2D Scatter of vertices in interactive model at time=", num2str(cfg_atom_matrix_plot_t) ) );
+    axis ("equal");
     xlabel("x"); ylabel("y");
   endif
 
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % create atom matrix of the reference model
-  Q_ref = zeros(1,4);
-  for i=1:4
-    Q_ref(1,i) = get_session_data_val (cfg_atom_matrix_ref_col_names{i}, session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
-  endfor
-  for a=1:atom_count
-    ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
-  endfor
+  ref_atom_xyz = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz);
+
   %plot above matrix in 2D
-  if cfg_atom_matrix_plot_ref == true
+  if cfg_atom_matrix_ref_plot == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (3);
     scatter (ref_atom_xyz(:,1), ref_atom_xyz(:,2), atom_cor(:,1), atom_cor(:,2:4));
     title ("2D Scatter of vertices in reference model");
-    axis ("square", "equal");
+    axis ("equal");
     xlabel("x"); ylabel("y");
   endif
 endif
 
+% gaze stuff calculation
+if cfg_gaze_matrix == true
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
+  % check screen size problem: pxToAngs (cvsSize 400 -> 600) OR gaze_px /1.5 pra coincidir com tela 1360x768
 
+endif
+%}
 
 %clear cfg variables for cleaner debugging
 %clear cfg*
