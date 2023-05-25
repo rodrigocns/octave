@@ -18,7 +18,7 @@ clear -exclusive *_data;
 % leave 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % read eyeTracking .xlsx input file
-cfg_eyeT_input = false; %slow, aprox. 1 min for 10k lines and 9 columns
+cfg_eyeT_input = true; %slow
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
 % (only if necessary) append a column of epoch unix data to the eyeT data array
@@ -32,17 +32,17 @@ cfg_pupil_cols = [9,10]; % eyeT_data columns that need the interpolation. Pulil 
 cfg_pupil_missing_data = [0,-1]; % possible results of missing data to be identified and corrected
 
 % read iRT .xlsx input file
-cfg_iRT_input = false; %slow, aprox. 25 seconds for 4.5k lines and 8 columns
+cfg_iRT_input = true; %slow
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 
 % merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
-cfg_data_merge = false;
+cfg_data_merge = true;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
 
-% WRITE output file from task_data
+% WRITE output file from task_data (BUGged)
 cfg_write_output = false;
 cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
 
@@ -55,18 +55,19 @@ cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to 
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
 cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
-cfg_atom_matrix_ref_plot = true; %2d scatter of the reference model (image#2)
-cfg_atom_matrix_plot = true; %2d scatter of the interactive model at a set time (image#3)
+cfg_atom_matrix_ref_plot = false; %2d scatter of the reference model (image#2)
+cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time (image#3)
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (image#3)
 
 % calculate gaze related things
-cfg_gaze_matrix = false;
-cfg_gaze_matrix_cols = [10,11]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
+cfg_gaze_dist_matrix = false;
+cfg_gaze_cols = [10,11]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
 cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
+cfg_gaze_
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
@@ -278,7 +279,7 @@ function R = rot_matrix (qi,qj,qk,qr, s = 1)
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
 % rotate atom_xyz atom matrix in time based on the interactive model quaternions from task_data matrix
-function atom_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_xyz)
+function atomInt_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_xyz)
   % copy quaternions from interactive model
   Q = task_data(:,atom_matrix_quat_cols);
   % create rotation matrix for each frame (rot_vector)
@@ -289,15 +290,15 @@ function atom_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_x
     for a = 1:size(atom_xyz,1)
       % 3x3 * 3x1 = 3x1 {rotation center at 0,0,0}
       % this is the right order. changing it will give reversed results!
-      atom_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
+      atomInt_xyzRot(a,1:3,t) = (rot_vector(1:3,1:3,t)*atom_xyz(a,1:3)' )' ;
     endfor
   endfor
 endfunction
 % rotate atom_xyz atom matrix based on the reference model quaternion from session_data
-function ref_atom_xyz = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz)
+function atomRef_xyzRot = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz)
   Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
   for a = 1:size(atom_xyz,1);
-    ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
+    atomRef_xyzRot(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
   endfor
 endfunction
 % calculate, in pixels, the canvas center from the browser window
@@ -323,17 +324,34 @@ function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, cvsRef_center
   %gaze_int_px = gaze_px - cvsInt_center;
   %gaze_cvs_px = gaze_px - cvsInt_center;
 
-  %atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atoms, xy, frame) {centralized canvas}
-  %atom_xy_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
-  %ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_factor_px; %get pixel xy
+  %atom_xy(:,1:2,:) = atomInt_xyzRot(:,1:2,:); %atom_xy(atoms, xy, frame) {centralized canvas}
+  %atom_int_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
+  %ref_atom_xy_px(:,1:2) = atomRef_xyzRot(:,1:2)*config_factor_px; %get pixel xy
 
   %get px coordinates of atoms xy projection centralized at the canvas (temporal/interactive and static/reference)
-  %atom_xy_px = atom_xyzRot(:,1:2,:) * pxAngs_rate;
-  %ref_atom_xy_px = ref_atom_xyz(:,1:2) * pxAngs_rate;
+  %atom_int_px = atomInt_xyzRot(:,1:2,:) * pxAngs_rate;
+  %ref_atom_xy_px = atomRef_xyzRot(:,1:2) * pxAngs_rate;
 
 
 endfunction
-% XXX
+
+% compute pixel distance between gaze and each atom of selected matrix
+function gaze_atom_dist = get_gaze_atom_dist (task_data, cfg_gaze_cols, atom_px) % MAKE FUNCTION
+%    printf("Calculating gaze-atom distance array.."); tic();
+    %initialize arrays
+    gaze_px = task_data (:,cfg_gaze_cols);
+    gaze_atom_dist = zeros (size(gaze_px,1),atom_count);
+    % compute matrices of screen position distances between gaze and each atom
+    for a=1:size(atom_px,1) %for each atom
+      for t=1 : size(gaze_px,1) %for each point in time
+        %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
+        gaze_atom_dist(t,a) = sqrt ( (atom_px(a,1,t)-gaze_px(t,1))^2 + (atom_px(a,2,t)-gaze_px(t,2))^2 );
+%        gaze_atomInt_dist(t,a) = sqrt ( (atom_int_px(a,1,t)-gaze_px(t,1))^2 + (atom_int_px(a,2,t)-gaze_px(t,2))^2 );
+%        gaze_atomRef_dist(t,a) = sqrt ( (atom_ref_px(a,1)-gaze_px(t,1))^2 + (atom_ref_px(a,2)-gaze_px(t,2))^2 );
+      endfor
+    endfor
+%    printf(".array calculated.");
+endfunction
 %==========================
 
 %SCRIPTS
@@ -405,16 +423,16 @@ if cfg_xyz_input == true
 endif
 
 
-% create atom matrix (temporal and reference) from xyz coordinates rotated acording to quaternions in task_data
+% compute atom matrices (temporal and reference) from xyz coordinates rotated acording to rotation data in chosen session
 if cfg_atom_matrix == true
-  atom_xyzRot = rotate_atom_xyz (task_data, cfg_atom_matrix_quat_cols, atom_xyz);
+  atomInt_xyzRot = rotate_atom_xyz (task_data, cfg_atom_matrix_quat_cols, atom_xyz);
   %plot above matrix in 2D at time set as cfg_atom_matrix_plot_t
-  if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atom_xyzRot,3) )
+  if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atomInt_xyzRot,3) )
     warning("The chosen frame index %i is outside the matrix range. Choose a reasonable frame index");
-  else
+  elseif cfg_atom_matrix_plot == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (2);
-    scatter (atom_xyzRot(:,1,cfg_atom_matrix_plot_t), atom_xyzRot(:,2,cfg_atom_matrix_plot_t), atom_cor(:,1), atom_cor(:,2:4));
+    scatter (atomInt_xyzRot(:,1,cfg_atom_matrix_plot_t), atomInt_xyzRot(:,2,cfg_atom_matrix_plot_t), atom_cor(:,1), atom_cor(:,2:4));
     title ( strcat ("2D Scatter of vertices in interactive model at time=", num2str(cfg_atom_matrix_plot_t) ) );
     axis ("equal");
     xlabel("x"); ylabel("y");
@@ -422,67 +440,150 @@ if cfg_atom_matrix == true
 
   session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % create atom matrix of the reference model
-  ref_atom_xyz = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz);
-
+  atomRef_xyzRot = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz);
   %plot above matrix in 2D
   if cfg_atom_matrix_ref_plot == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (3);
-    scatter (ref_atom_xyz(:,1), ref_atom_xyz(:,2), atom_cor(:,1), atom_cor(:,2:4));
+    scatter (atomRef_xyzRot(:,1), atomRef_xyzRot(:,2), atom_cor(:,1), atom_cor(:,2:4));
     title ("2D Scatter of vertices in reference model");
     axis ("equal");
     xlabel("x"); ylabel("y");
   endif
-endif
 
-% gaze stuff calculation
-if cfg_gaze_matrix == true
-  % get row index of the chosen session
-  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % compute xy pixel coordinate of canvas center (both reference and interactive)
   cvsRef_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsRef_cols);
   cvsInt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsInt_cols);
-  % read gaze xy position on screen in pixels (it NEEDS to be in pixels, starting at [0,0] in top-left )
-  gaze_px = task_data (:,gaze_matrix_cols);
-  % compute relative position of gaze matrix to the center of the respective canvas (int or ref)
-  gaze_ref_px = gaze_px - cvsRef_center;
-  gaze_int_px = gaze_px - cvsInt_center;
-
   % get pixel to angstrom ration of chosen session
   pxAngs_rate = session_data{session_row, cfg_gaze_pxAngs_rate_col};
-  % get px coordinates of atoms xy projection centralized at the canvas (temporal/interactive and static/reference)
-  atom_xy_px = atom_xyzRot(:,1:2,:) * pxAngs_rate;
-  ref_atom_xy_px = ref_atom_xyz(:,1:2) * pxAngs_rate;
+  % get px coordinates of atoms xy projection (temporal/interactive and static/reference). (0,0) is top-left corner of screen
+  atom_int_px = (atomInt_xyzRot(:,1:2,:) * pxAngs_rate) + cvsRef_center;
+  atom_ref_px = (atomRef_xyzRot(:,1:2) * pxAngs_rate) + cvsInt_center;
 
-  %initialize arrays (time x atom_count)
-  printf("Calculating gaze-atom distance array.."); tic();
-  gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
-  for a=1:atom_count %for each atom
-    for t=1 : size(Q,1) %for each point in time
-      % compute distance
-      %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
-      gaze_atom_dist(t,a) = sqrt ( (atom_xy_px(a,1,t)-gaze_cvs_px(t,1))^2 + (atom_xy_px(a,2,t)-gaze_cvs_px(t,2))^2 );
-      gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
+endif
+
+% gaze stuff calculation
+if cfg_gaze_dist_matrix == true
+  if 1==2 %commented scripts that will go away
+  % get row index of the chosen session
+%  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
+  % compute xy pixel coordinate of canvas center (both reference and interactive)
+%  cvsRef_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsRef_cols);
+%  cvsInt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsInt_cols);
+
+  % get pixel to angstrom ration of chosen session
+%  pxAngs_rate = session_data{session_row, cfg_gaze_pxAngs_rate_col};
+  % get px coordinates of atoms xy projection (temporal/interactive and static/reference)
+%  atom_int_px = (atomInt_xyzRot(:,1:2,:) * pxAngs_rate) + cvsRef_center;
+%  atom_ref_px = (atomRef_xyzRot(:,1:2) * pxAngs_rate) + cvsInt_center;
+
+  % read gaze xy position on screen in pixels (it NEEDS to be in pixels, starting at [0,0] in top-left )
+  %gaze_px = task_data (:,cfg_gaze_cols);
+  % compute relative position of gaze matrix to the center of the respective canvas (int or ref)
+  %gazeRef_px = gaze_px - cvsRef_center;
+  %gazeInt_px = gaze_px - cvsInt_center;
+  % will set reference (0,0) to screen top-left
+  endif
+
+  % Generate matrices of screen position distances between gazepoint and each atom
+  function gaze_atomInt_dist = get_gaze_atom_dist (task_data, cfg_gaze_cols, ) % MAKE FUNCTION
+    printf("Calculating gaze-atom distance array.."); tic();
+    %initialize arrays
+    gaze_px = task_data (:,cfg_gaze_cols);
+    gaze_atomRef_dist = gaze_atomInt_dist = zeros (size(gaze_px,1),atom_count);
+    % compute matrices of screen position distances between gaze and each atom
+    for a=1:atom_count %for each atom
+      for t=1 : size(gaze_px,1) %for each point in time
+        %Formula: gaze_atomInt_dist = sqrt( (x-x')^2 + (y-y')^2 )
+        gaze_atomInt_dist(t,a) = sqrt ( (atom_int_px(a,1,t)-gazeInt_px(t,1))^2 + (atom_int_px(a,2,t)-gazeInt_px(t,2))^2 );
+        gaze_atomRef_dist(t,a) = sqrt ( (atom_ref_px(a,1)-gazeRef_px(t,1))^2 + (atom_ref_px(a,2)-gazeRef_px(t,2))^2 );
+      endfor
     endfor
-  endfor
-  %time scan to fill in where are the gaze and its nearest atom
+    printf(".array calculated.");
+  endfunction
+
+  % compute gaze_status in relation to canva : 2= int; 1= ref, 0= outside (?)
   for t=1 : size(Q,1)
-    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) % marks in which part is the gaze
+    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) %marca em qual parte esta o gaze da pessoa
       gaze_status(t,1) = 2;
-      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atomInt_dist(t,:));
     elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
       gaze_status(t,1) = 1;
-      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_ref_atom_dist(t,:));
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atomRef_dist(t,:));
     else
       gaze_status(t,1) = 0;
       atom_closer_to_gaze(t,1:2) = [0,0];
     endif
   endfor
-  printf(".array calculated.");
+  printf(".gaze status calculated.");
+  toc();
 
+  % Calculate 3D object transparency gradient from time spent in proximity of gaze
+  printf("Calculating transparency gradient.");tic();
+  %initialize
+  atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1);
+  ref_dist = dist = zeros (size (Q,1),2,atom_count);
+  ref_dist_exp = dist_exp = zeros (size(Q,1), atom_count);
+  for a=1 : atom_count
+    %gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*config_gauss_wdt^2)) dt)
+    for t=1 : size (Q,1)
+      ref_dist(t,1:2,a) = [ (gaze_ref_px(t,1) - ref_atom_xy_px(a,1)).^2 , (gaze_ref_px(t,2) - ref_atom_xy_px(a,2)).^2 ];
+      dist(t,1:2,a) = [ (gaze_cvs_px(t,1) - atom_xy_px(a,1,t)).^2 , (gaze_cvs_px(t,2) - atom_xy_px(a,2,t)).^2 ];
+    endfor
+  endfor
+  for c=1:10
+    for a=1 : atom_count
+      config_gauss_wdt = c*20;
+      %calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
+      % calculate and multiply by binary (0/1), testing for gaze is inside reference
+      ref_dist_exp = exp (-(ref_dist(:,1,a)+ref_dist(:,2,a))/(2*config_gauss_wdt^2) ) ;
 
+      dist_exp = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; %idem, mas pra referencia
+      ref_atom_gaze_alfa(a) = sum(ref_dist_exp.*(gaze_status==1) ); %soma tudo
+      atom_gaze_alfa(a) = sum(dist_exp.*(gaze_status==2) );
+    endfor
+    plot(atom_gaze_alfa);
+    %xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;ref_atom_gaze_alfa], strcat("ref_",task_name), strcat (char (c+64), "2") );
+    %xlswrite ("lista_alfas_atomos.xlsx", [config_gauss_wdt;0;atom_gaze_alfa], strcat(task_name), strcat (char (c+64), "2") );
+  endfor
+  printf("concluido!");toc();
 
+endif
 
+% Calculate 3D object transparency gradient from time spent in proximity of gaze
+if (config_dist_integral_temporal == 1)
+  printf("Calculating transparency gradient animation.");tic();
+  atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1); #(a,1)
+  ref_dist = dist = zeros (size (Q,1),2,atom_count);  #(t,1:2,a)
+  ref_dist_exp = dist_exp = zeros (size (Q,1), atom_count); #(t,a)
+  ##formula da gaussiana: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*config_gauss_wdt^2)) dt)
+  for a=1 : atom_count
+    for t=1 : size (Q,1)
+      ref_dist(t,1:2,a) = [ (gaze_ref_px(t,1) - ref_atom_xy_px(a,1)).^2 , (gaze_ref_px(t,2) - ref_atom_xy_px(a,2)).^2 ];
+      dist(t,1:2,a) = [ (gaze_cvs_px(t,1) - atom_xy_px(a,1,t)).^2 , (gaze_cvs_px(t,2) - atom_xy_px(a,2,t)).^2 ];
+    endfor
+  endfor
+%  for c=1:10
+  for c=1:1
+    for a=1 : atom_count %preenchendo valores das integrais da gaussiana
+      config_gauss_wdt = c*20; %largura da gaussiana
+      ref_dist_exp(:,a) = exp (-(ref_dist(:,1,a)+ref_dist(:,2,a))/(2*config_gauss_wdt^2) ) ; %calcula e multiplica por 0/1 logico, se gaze esta dentro da ref
+      dist_exp(:,a) = exp (-(dist(:,1,a)+dist(:,2,a))/(2*config_gauss_wdt^2) ) ; %idem, mas pra referencia
+    endfor
+    janela = round (size (Q,1)*0.1); %tamanho da janela de calculo do gradiente
+    for t=1 : size (Q,1) %montando tabela do gradiente de transparencia com janela de frames
+      s = max([t-janela, 1]); %regra pra janela(s:t)
+      ref_atom_gaze_alfa(t,1:atom_count) = sum (ref_dist_exp(s:t,1:atom_count).*(gaze_status(s:t)==1) ); %soma tudo e armazena pra um atomo
+      atom_gaze_alfa(t,1:atom_count) = sum (dist_exp(s:t,1:atom_count).*(gaze_status(s:t)==2) );
+        %INSERIR NORMALIZACAO AQUI
+    endfor
+    plot(atom_gaze_alfa(end,:));
+    xlswrite ("teste.xlsx", [ref_atom_gaze_alfa], strcat("ref_",task_name,"_",num2str (config_gauss_wdt),"_RAW"), "E2" );
+    xlswrite ("teste.xlsx", [Q,atom_gaze_alfa], strcat(task_name,"_",num2str (config_gauss_wdt),"_RAW"), "A2" );
+%    xlswrite ("lista_alfas_atomos.xlsx", [ref_atom_gaze_alfa], strcat("ref_",task_name,"_",num2str (config_gauss_wdt)), "E2" );
+%    xlswrite ("lista_alfas_atomos.xlsx", [Q,atom_gaze_alfa], strcat(task_name,"_",num2str (config_gauss_wdt)), "A2" );
+  endfor
+  printf("concluido!");toc();
 endif
 
 
