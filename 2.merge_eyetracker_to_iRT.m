@@ -65,6 +65,8 @@ cfg_gaze_matrix_cols = [10,11]; % column indexes of gaze x and y coordinates on 
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
 cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
+cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
+
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
@@ -304,7 +306,7 @@ function canvas_center = get_cvs_center (session_data, row_index, cvs_pos_cols)
   canvas_center = [ (canvas(2) + canvas(4) )/2 , (canvas(1) + canvas(3) )/2 ];
 endfunction
 % compute temporal matrix of gaze distances to each atom
-function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, cvsRef_center, cvsInt_center)
+function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, cvsRef_center, cvsInt_center, pxAngs_rate)
 
   %canvasRef = cell2mat (session_data (row_index,cvsRef_cols) );
   %canvasInt = cell2mat (session_data (row_index,cvsInt_cols) );
@@ -314,43 +316,20 @@ function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, cvsRef_center
   %config_ref_center_px = [211,376]; %TBD
   %config_cvs_center_px = [615,379]; %TBD
 
-
-  gaze_px = task_data (:,gaze_matrix_cols);
-  %gaze_px = gaze(:,1:2).*[config_screen_size]; %probably will only use if gaze xy is not in pixels
-  gaze_ref_px = gaze_px - cvsRef_center;
-  gaze_cvs_px = gaze_px - cvsInt_center;
+  % read gaze xy position on screen in pixels (it NEEDS to be in pixels, starting at [0,0] in top-left )
+  %gaze_px = task_data (:,gaze_matrix_cols);
+  % compute relative position of gaze matrix as [0,0] being at the center of the respective canvas (int or ref)
+  %gaze_ref_px = gaze_px - cvsRef_center;
+  %gaze_int_px = gaze_px - cvsInt_center;
+  %gaze_cvs_px = gaze_px - cvsInt_center;
 
   %atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atoms, xy, frame) {centralized canvas}
   %atom_xy_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
   %ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_factor_px; %get pixel xy
 
-  atom_xy_px(:,:,:) = atom_xyzRot(:,1:2,:) * config_factor_px; %get px coordinates of atoms xy projection {already centralized}
-  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2) * config_factor_px; %get pixel xy
-
-    %initialize arrays (time x atom_count)
-  printf("Calculating gaze-atom distance array.."); tic();
-  gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
-  for a=1:atom_count %for each atom
-    for t=1 : size(Q,1) %for each point in time
-      %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
-      gaze_atom_dist(t,a) = sqrt ( (atom_xy_px(a,1,t)-gaze_cvs_px(t,1))^2 + (atom_xy_px(a,2,t)-gaze_cvs_px(t,2))^2 );
-      gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
-    endfor
-  endfor
-  %time scan to fill in where are the gaze and its nearest atom
-  for t=1 : size(Q,1)
-    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) %marca em qual parte esta o gaze da pessoa
-      gaze_status(t,1) = 2;
-      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
-    elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
-      gaze_status(t,1) = 1;
-      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_ref_atom_dist(t,:));
-    else
-      gaze_status(t,1) = 0;
-      atom_closer_to_gaze(t,1:2) = [0,0];
-    endif
-  endfor
-  printf(".array calculated.");
+  %get px coordinates of atoms xy projection centralized at the canvas (temporal/interactive and static/reference)
+  %atom_xy_px = atom_xyzRot(:,1:2,:) * pxAngs_rate;
+  %ref_atom_xy_px = ref_atom_xyz(:,1:2) * pxAngs_rate;
 
 
 endfunction
@@ -463,10 +442,49 @@ if cfg_gaze_matrix == true
   % compute xy pixel coordinate of canvas center (both reference and interactive)
   cvsRef_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsRef_cols);
   cvsInt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsInt_cols);
+  % read gaze xy position on screen in pixels (it NEEDS to be in pixels, starting at [0,0] in top-left )
+  gaze_px = task_data (:,gaze_matrix_cols);
+  % compute relative position of gaze matrix to the center of the respective canvas (int or ref)
+  gaze_ref_px = gaze_px - cvsRef_center;
+  gaze_int_px = gaze_px - cvsInt_center;
+
+  % get pixel to angstrom ration of chosen session
+  pxAngs_rate = session_data{session_row, cfg_gaze_pxAngs_rate_col};
+  % get px coordinates of atoms xy projection centralized at the canvas (temporal/interactive and static/reference)
+  atom_xy_px = atom_xyzRot(:,1:2,:) * pxAngs_rate;
+  ref_atom_xy_px = ref_atom_xyz(:,1:2) * pxAngs_rate;
+
+  %initialize arrays (time x atom_count)
+  printf("Calculating gaze-atom distance array.."); tic();
+  gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
+  for a=1:atom_count %for each atom
+    for t=1 : size(Q,1) %for each point in time
+      % compute distance
+      %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
+      gaze_atom_dist(t,a) = sqrt ( (atom_xy_px(a,1,t)-gaze_cvs_px(t,1))^2 + (atom_xy_px(a,2,t)-gaze_cvs_px(t,2))^2 );
+      gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
+    endfor
+  endfor
+  %time scan to fill in where are the gaze and its nearest atom
+  for t=1 : size(Q,1)
+    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) % marks in which part is the gaze
+      gaze_status(t,1) = 2;
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
+    elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
+      gaze_status(t,1) = 1;
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_ref_atom_dist(t,:));
+    else
+      gaze_status(t,1) = 0;
+      atom_closer_to_gaze(t,1:2) = [0,0];
+    endif
+  endfor
+  printf(".array calculated.");
+
+
 
 
 endif
-%}
+
 
 %clear cfg variables for cleaner debugging
 %clear cfg*
