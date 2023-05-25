@@ -268,15 +268,14 @@ function [atom_count, elem, atom_coords] = get_xyz_data (filename)
   fclose(fid);
   printf(" sucess! \n");
 endfunction
-% returns rotation matrix {R} from a quaternion {i,j,k,real}
+% return rotation matrix {R} from a quaternion {i,j,k,real}
 function R = rot_matrix (qi,qj,qk,qr, s = 1)
   % real component is last because jmol data uses this order: qi,qj,qk,qr.
   R= [1-2*s*(qj^2 + qk^2), 2*s*(qi*qj - qk*qr), 2*s*(qi*qk + qj*qr);
       2*s*(qi*qj + qk*qr), 1-2*s*(qi^2 + qk^2), 2*s*(qj*qk - qi*qr);
       2*s*(qi*qk - qj*qr), 2*s*(qj*qk + qi*qr), 1-2*s*(qi^2 + qj^2)];
 endfunction
-
-% rotates atom_xyz atom matrix in time based on the interactive model quaternions from task_data matrix
+% rotate atom_xyz atom matrix in time based on the interactive model quaternions from task_data matrix
 function atom_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_xyz)
   % copy quaternions from interactive model
   Q = task_data(:,atom_matrix_quat_cols);
@@ -292,31 +291,68 @@ function atom_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, atom_x
     endfor
   endfor
 endfunction
-% rotates atom_xyz atom matrix based on the reference model quaternion from session_data
+% rotate atom_xyz atom matrix based on the reference model quaternion from session_data
 function ref_atom_xyz = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz)
   Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
   for a = 1:size(atom_xyz,1);
     ref_atom_xyz(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
   endfor
 endfunction
-% gaze functions
-function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, session_data, row_index, scrSize_cols, cvsRef_cols, cvsInt_cols)
-  row_index = 5;
-  screenSize = cell2mat (session_data (row_index,cfg_gaze_scrSize_cols) );
-  canvasRef = cell2mat (session_data (row_index,cvsRef_cols) );
-  canvasInt = cell2mat (session_data (row_index,cvsInt_cols) );
-  canvasRef_center = [ (canvasRef(2) + canvasRef(4) )/2 , (canvasRef(1) + canvasRef(3) )/2 ];
-  canvasInt_center = [ (canvasInt(2) + canvasInt(4) )/2 , (canvasInt(1) + canvasInt(3) )/2 ];
+% calculate, in pixels, the canvas center from the browser window
+function canvas_center = get_cvs_center (session_data, row_index, cvs_pos_cols)
+  canvas = cell2mat (session_data (row_index,cvs_pos_cols) ); %top, right, bottom, left side positions.
+  canvas_center = [ (canvas(2) + canvas(4) )/2 , (canvas(1) + canvas(3) )/2 ];
+endfunction
+% compute temporal matrix of gaze distances to each atom
+function [gazes] = gaze_calculations (task_data, gaze_matrix_cols, cvsRef_center, cvsInt_center)
+
+  %canvasRef = cell2mat (session_data (row_index,cvsRef_cols) );
+  %canvasInt = cell2mat (session_data (row_index,cvsInt_cols) );
+  %canvasRef_center = [ (canvasRef(2) + canvasRef(4) )/2 , (canvasRef(1) + canvasRef(3) )/2 ];
+  %canvasInt_center = [ (canvasInt(2) + canvasInt(4) )/2 , (canvasInt(1) + canvasInt(3) )/2 ];
+
   %config_ref_center_px = [211,376]; %TBD
   %config_cvs_center_px = [615,379]; %TBD
 
+
   gaze_px = task_data (:,gaze_matrix_cols);
   %gaze_px = gaze(:,1:2).*[config_screen_size]; %probably will only use if gaze xy is not in pixels
-  gaze_ref_px = gaze_px - canvasRef_center;
-  gaze_cvs_px = gaze_px - canvasInt_center;
+  gaze_ref_px = gaze_px - cvsRef_center;
+  gaze_cvs_px = gaze_px - cvsInt_center;
 
-  atom_xy_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
-  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_factor_px; %get pixel xy
+  %atom_xy(:,1:2,:) = atom_xyzRot(:,1:2,:); %atom_xy(atoms, xy, frame) {centralized canvas}
+  %atom_xy_px(:,:,:) = config_factor_px*atom_xy(:,:,:); %get px coordinates of atoms xy projection {already centralized}
+  %ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2)*config_factor_px; %get pixel xy
+
+  atom_xy_px(:,:,:) = atom_xyzRot(:,1:2,:) * config_factor_px; %get px coordinates of atoms xy projection {already centralized}
+  ref_atom_xy_px(:,1:2) = ref_atom_xyz(:,1:2) * config_factor_px; %get pixel xy
+
+    %initialize arrays (time x atom_count)
+  printf("Calculating gaze-atom distance array.."); tic();
+  gaze_ref_atom_dist = gaze_atom_dist = zeros (size(Q,1),atom_count);
+  for a=1:atom_count %for each atom
+    for t=1 : size(Q,1) %for each point in time
+      %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
+      gaze_atom_dist(t,a) = sqrt ( (atom_xy_px(a,1,t)-gaze_cvs_px(t,1))^2 + (atom_xy_px(a,2,t)-gaze_cvs_px(t,2))^2 );
+      gaze_ref_atom_dist(t,a) = sqrt ( (ref_atom_xy_px(a,1)-gaze_cvs_px(t,1))^2 + (ref_atom_xy_px(a,2)-gaze_cvs_px(t,2))^2 );
+    endfor
+  endfor
+  %time scan to fill in where are the gaze and its nearest atom
+  for t=1 : size(Q,1)
+    if ( -200<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<200 && -200<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<200  ) %marca em qual parte esta o gaze da pessoa
+      gaze_status(t,1) = 2;
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_atom_dist(t,:));
+    elseif ( -604<gaze_cvs_px(t,1) && gaze_cvs_px(t,1)<-204 && -203<gaze_cvs_px(t,2) && gaze_cvs_px(t,2)<197  )
+      gaze_status(t,1) = 1;
+      [atom_closer_to_gaze(t,1),atom_closer_to_gaze(t,2)] = min (gaze_ref_atom_dist(t,:));
+    else
+      gaze_status(t,1) = 0;
+      atom_closer_to_gaze(t,1:2) = [0,0];
+    endif
+  endfor
+  printf(".array calculated.");
+
+
 endfunction
 % XXX
 %==========================
@@ -422,8 +458,12 @@ endif
 
 % gaze stuff calculation
 if cfg_gaze_matrix == true
+  % get row index of the chosen session
   session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
-  % check screen size problem: pxToAngs (cvsSize 400 -> 600) OR gaze_px /1.5 pra coincidir com tela 1360x768
+  % compute xy pixel coordinate of canvas center (both reference and interactive)
+  cvsRef_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsRef_cols);
+  cvsInt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsInt_cols);
+
 
 endif
 %}
