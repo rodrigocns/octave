@@ -372,6 +372,76 @@ function gaze_status = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_co
   endfor
 endfunction
 
+% returns string with jmol commands to select atoms of atom_index_array indexes, or return empty string if no index.
+function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, transl_num)
+  % if atom_index_array is not empty, fill it.
+  if ~isempty(atom_index_array)
+    current_jmol_script = "select ";
+    % filling with the atom indexes
+    for n=1:length(atom_index_array)
+      current_jmol_script = strcat(current_jmol_script, " atomno=", num2str (atom_index_array(n)) );
+      % write 'or' if this was not the last, or ';' if it was.
+      if n < length(atom_index_array)
+        current_jmol_script = strcat(current_jmol_script, " or");
+      else
+        current_jmol_script = strcat(current_jmol_script, ";");
+      endif
+    endfor
+    current_jmol_script = strcat(current_jmol_script, [" color atoms TRANSLUCENT ", num2str(transl_num),";"] );
+  # Else, leave it with empty space
+  else
+    current_jmol_script = "";
+  endif
+endfunction
+
+% writes cell matrix with jmol commands for atoms transparency animation from heatmap_mw_int (or _ref). Needs to horzcat() to replay_rot_jmol_script
+function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_mw)
+
+  % building heatmap scale for animation
+  for t=1:frame_count
+    heatmap_mw_max(t) = max(heatmap_mw(t,:));
+    heatmap_mw_min(t) = min(heatmap_mw(t,:));
+    heatmap_mw_range(t) = heatmap_mw_max(t) - heatmap_mw_min(t);
+    % compute scale from 1 (max) to nearly 0 for all atoms in each time frame
+    for a=1:atom_count
+      % 0.05 is minimal value to avoid division by 0
+      heatscale_mw(t,a) = heatmap_mw(t,a) / max ( heatmap_mw_max(t), 0.05 );
+    endfor
+  endfor
+  % build atom x frame matrix for "painting atoms with transparency" (scale 'e' of eights in jmol)
+  transparency_matrix = 1 - round( heatscale_mw * 8)/8;
+  replay_transp_jmol_script = cell(frame_count,9);
+  % first frame, all atoms are set. loop through each transparency scale
+  for e = 0:8
+    atom_index_array = find ( transparency_matrix(1,:) == e/8 );
+    current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, e/8);
+    replay_transp_jmol_script{1,e+1} = current_jmol_script;
+  endfor
+  % for the rest of the frames, and each scale
+  for t = 2:frame_count
+    for e = 0:8
+      atom_index_array = find ( (transparency_matrix(t,:) == e/8 ) .* ( transparency_matrix(t-1,:) != transparency_matrix(t,:) ) );
+      current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, e/8);
+      replay_transp_jmol_script{t,e+1} = current_jmol_script;
+    endfor
+  endfor
+
+endfunction
+
+% write file with jmol commands to animate the replay with gaze heatmap in 3D
+function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
+  tic(); printf("Writing heatmap output file..");
+  %open file pointer
+  xls_heatmapMw = xlsopen (filename, true);
+
+  [xls_heatmapMw] = oct2xls (data_matrix_int, xls_heatmapMw, "jmol gaze int");
+  [xls_heatmapMw] = oct2xls (data_matrix_ref, xls_heatmapMw, "jmol gaze ref");
+
+  %close file pointer
+  [xls_heatmapMw] = xlsclose (xls_heatmapMw);
+  printf(".done!"); toc();
+endfunction
+
 %==========================
 %SCRIPTS
 % data checks for the slowest functions!
@@ -590,87 +660,31 @@ if cfg_gaze_heatmap_window == true
   c=1;
   for a=1 : atom_count
     % fill gaussian integral values
-%    cfg_gaussian_wdt = c*20; %gaussian width
-%    cfg_gaussian_wdt = 1.5*pxAngs_rate; %gaussian width
-%    cfg_gaussian_wdt = 150; %gaussian width in screen pixels
-%    distMw_ref_exp(:,a) = exp ( - ( distMw_ref(:,1,a) + distMw_ref(:,2,a) ) / (2*cfg_gaussian_wdt^2) ) ;
-%    distMw_int_exp(:,a) = exp ( - ( distMw_int(:,1,a) + distMw_int(:,2,a) ) / (2*cfg_gaussian_wdt^2) ) ;
     exp_distMw_ref(:,a) = exp ( - distMw_ref(:,a) / (2*cfg_gaussian_wdt^2) ) ;
     exp_distMw_int(:,a) = exp ( - distMw_int(:,a) / (2*cfg_gaussian_wdt^2) ) ;
   endfor
 
-  %cfg_heatmap_mw_frame_length = round (frame_count*0.1); %moving window size for alpha-gradient
   % for each atom, sums all values inside the moving window ("integrate") and register
   for t=1 : frame_count %building transparency gradient table with moving window
     %cfg_heatmap_mw_frame_length rule (spans from 's' to 't')
     s = max([t-cfg_heatmap_mw_frame_length, 1]);
-%    heatmap_mw_ref(t,1:atom_count) = sum (distMw_ref_exp(s:t,1:atom_count).*(gaze_status(s:t)==1) ); %soma tudo e armazena pra um atomo
-%    heatmap_mw_int(t,1:atom_count) = sum (distMw_int_exp(s:t,1:atom_count).*(gaze_status(s:t)==2) );
     heatmap_mw_ref(t,1:atom_count) = sum (exp_distMw_ref(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeRef) );
     heatmap_mw_int(t,1:atom_count) = sum (exp_distMw_int(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeInt) );
-      %INSERIR NORMALIZACAO AQUI
-  endfor
-  % building heatmap scale for animation
-  for t=1:frame_count
-    heatmap_mw_ref_max(t) = max(heatmap_mw_ref(t,:));
-    heatmap_mw_ref_min(t) = min(heatmap_mw_ref(t,:));
-    heatmap_mw_ref_range(t) = heatmap_mw_ref_max(t) - heatmap_mw_ref_min(t);
-    heatmap_mw_int_max(t) = max(heatmap_mw_int(t,:));
-    heatmap_mw_int_min(t) = min(heatmap_mw_int(t,:));
-    heatmap_mw_int_range(t) = heatmap_mw_int_max(t) - heatmap_mw_int_min(t);
-    % compute scale from 1 (max) to nearly 0 for all atoms in each time frame
-    for a=1:atom_count
-      % 0.05 is minimal value to avoid division by 0
-      heatscale_mw_ref(t,a) = heatmap_mw_ref(t,a) / max ( heatmap_mw_ref_max(t), 0.05 );
-      heatscale_mw_int(t,a) = heatmap_mw_int(t,a) / max ( heatmap_mw_int_max(t), 0.05 );
-    endfor
-  endfor
-  % build atom x frame matrix for "painting atoms with transparency" (scale of eights in jmol)
-  transparency_matrix_ref = 1-round( heatscale_mw_ref * 8)/8;
-  transparency_matrix_int = 1-round( heatscale_mw_int * 8)/8;
-  % first frame
-  for a=1:atom_count
-    replay_transp_jmol_script_ref{1,a} = strcat();
-    replay_transp_jmol_script_int{1,a} = ;
-  endfor
-  for a=1:atom_count
-    for t=2:frame_count
-      replay_transp_jmol_script_ref = ;
-      replay_transp_jmol_script_int = ;
-    endfor
   endfor
 
-  % TBD
 
-  printf("computation done!");toc();
 
-  printf("1st write ");tic();
-  xlswrite (cfg_heatmap_mw_filename, [heatmap_mw_ref], strcat("ref input"), "H2" );
-  printf("done! ");toc();
+  replay_transp_jmol_script_int = horzcat(replay_rot_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
+  replay_transp_jmol_script_ref = replay_transparency (frame_count, atom_count, heatmap_mw_ref);
+  printf("Writing jmol commands file (will take some time)...");tic();
+  writeOutput_heatmapMw (cfg_heatmap_mw_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
+  printf("done!"); toc();
 
-  printf("2nd write ");tic();
-  xlswrite (cfg_heatmap_mw_filename, [Q,heatmap_mw_int], strcat("int input"), "D2" );
-  printf("done! ");toc();
 
-%  xlswrite ("lista_alfas_atomos.xlsx", [ref_atom_gaze_alfa], strcat("ref_",task_name,"_",num2str (cfg_gaussian_wdt)), "E2" );
-%  xlswrite ("lista_alfas_atomos.xlsx", [Q,atom_gaze_alfa], strcat(task_name,"_",num2str (cfg_gaussian_wdt)), "A2" );
-%  printf("transparency gradient files written! \n"); toc();
-  printf("gauss width used: %f",cfg_gaussian_wdt);
 endif
-function writeOutput_heatmapMw (filename, header, data_matrix)
-  tic(); printf("Writing heatmap output file..");
-  %open file pointer
-  xls_heatmapMw = xlsopen (filename, true);
 
-  % NEED TO UPDATE WITH HEATMAP FILES
-%  merged_cell_matrix = vertcat (header, num2cell (data_matrix));
-%  [xls_heatmapMw] = oct2xls (merged_cell_matrix , xls_heatmapMw, "data");
 
-  %close file pointer
-  [xls_heatmapMw] = xlsclose (xls_heatmapMw);
-  printf(".done!"); toc();
-endfunction
-% writeOutput_heatmapMw (cfg_heatmap_mw_filename, header, data_matrix)
+
 
 
 %clear cfg variables for cleaner debugging
