@@ -34,6 +34,9 @@ cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identifi
 % read iRT .xlsx input file
 cfg_iRT_input = true; %slow
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+
+% obtain needed values from iRT data. Should always be 'true'
+cfg_iRT_process = true;
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 
@@ -41,15 +44,14 @@ cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 cfg_replay_animation = true;
 cfg_replay_animation_filename = "jmol replay commands.xlsx";
 
-% merge eyeTracker data to the chosen iRT task (be sure that the files are from the same session)
+% merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
 cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % WRITE output file from task_data (BUGged)
-cfg_write_output = false;
-cfg_output_filename = strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"); % name of the output file (.xlsx) from the merging of eyeT_data and iRT_data
+cfg_write_merge_output = true;
 
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
@@ -66,29 +68,28 @@ cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#
 
 % calculate gaze-canvas distances
 cfg_gaze_dist_matrix = true;
-cfg_gaze_cols = [10,11]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
+cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
 cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
-% calculate temporal transparency heatmap in 3D
-cfg_gaussian_wdt = 0.9; % width of gaussian
+% calculate the status of the gaze in respect to where it is located: inside reference canvas, interactive canvas, or outside both
+cfg_gaze_status_array = true;
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
-cfg_gaze_status_array = true;
 
-cfg_gaze_heatmap = true;
+% calculate temporal transparency heatmap in 3D
 cfg_gaze_heatmap_window = true;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
-cfg_gaussian_wdt = 150; %gaussian width in screen pixels, used in heatmap calculation
+cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
 cfg_heatmap_mw_filename = "translucent temporal heatmap.xlsx";
 cfg_heatmap_filename = "translucent heatmap.xlsx";
 
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
-   #     (maybe add_epoch() function if)     #
+   #          (or do modify it if)           #
    #      (you know what you are doing)      #
    #=========================================#
 %}
@@ -101,7 +102,7 @@ function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   %raw_eyeT_data = xlsread (filename);
   xls_eyeT = xlsopen(filename);
 
-  printf(".reading (this can take time, aprox. 1 min for 10k lines,8 cols).");
+  printf(".reading (this can take time).");
   cell_data = xls2oct(xls_eyeT);
   printf(".parsing.");
   raw_eyeT_header_data = cell(cell_data(1,:));
@@ -201,7 +202,7 @@ endfunction
 function resolugram = compute_resolugram (Q, Q_ref)
   resolugram = zeros ( size(Q,1), 1 );
   for t=1:size(Q,1)
-    resolugram(t) = abs( acos (Q(t,4)) - acos(Q_ref(4)) ) * ( 180/ pi() ) ;
+    resolugram(t) = abs( acos (Q(t,4)) - acos(Q_ref(4)) ) * ( 360/ pi() ) ;
   endfor
 endfunction
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
@@ -218,11 +219,17 @@ function mergedMatrix = merge_data (eyeT_data, task_data, desired_eyeT_columns)
 endfunction
 
 % write output file from merged data
-function writeOutput (filename, header, task_data)
-  tic(); printf("Writing output file..");
+function writeOutput_merged (filename, header, task_data)
+  printf("Writing output file.."); tic();
+  % open file pointer
   xls_merged = xlsopen (filename, true);
+
+  %write files
   merged_cell_matrix = vertcat (header, num2cell (task_data));
   [xls_merged] = oct2xls (merged_cell_matrix , xls_merged, "data");
+  [xls_merged] = oct2xls ( vertcat (session_data(1,:), session_data(session_row,:) ) , xls_merged, "session");
+
+  % close file pointer
   [xls_merged] = xlsclose ( xls_merged);
   printf(".done!"); toc();
 endfunction
@@ -387,7 +394,6 @@ function gaze_status = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_co
     endif
   endfor
 endfunction
-
 % returns string with jmol commands to select atoms of atom_index_array indexes, or return empty string if no index.
 function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, transl_num)
   % if atom_index_array is not empty, fill it.
@@ -490,35 +496,40 @@ endif
 % iRT_data and session_data input (calculates session_row, Q_ref, Q and frame_count with either true or false)
 if cfg_iRT_input == true
   [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
-  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
-  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
-  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
-  frame_count = size (Q,1);
 else
   disp("Skipping iRT file read.");
-  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
-  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
-  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
-  frame_count = size (Q,1);
 endif
 
-
-% iRT - eyeTracking data merge. Headers included
-if cfg_data_merge == true
+% obtain needed values from specified sessionID (cfg_iRT_sessionID) and taskID (cfg_iRT_taskID) inside session_data
+if cfg_iRT_process == true
+  % obtain row index of chosen task/session inside session_data table
+  session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % slice out desired iRT_data from raw_iRT_data (set desired columns in cfg_iRT_cols setting)
   [task_data, iRT_header_data] = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
 
-  resolugram = compute_resolugram (Q, Q_ref)
-  task_data = horzcat ( task_data, resolugram );
+  % obtain quaternion coordinates array (1 x 4) of reference model
+  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
+  % obtain quaternion coordinates matrix (t x 4) of interactive model
+  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
+  % obtain amount of rows/frames/data points from the duration of the executed task
+  frame_count = size (Q,1);
 
+  % compute resolugram data
+  resolugram = compute_resolugram (Q, Q_ref);
+  task_data = horzcat ( task_data, resolugram );
+endif
+
+% iRT - eyeTracking data merge. Headers included
+if cfg_data_merge == true
   % merge eyeT data into iRT data
   task_data = merge_data(eyeT_data, task_data, cfg_eyeT_cols);
   % merge headers
   merged_header_data = horzcat(iRT_header_data, "resolugram dist", eyeT_header_data(cfg_eyeT_cols));
 
   % WRITE output file
-  if cfg_write_output == true
-    writeOutput (cfg_output_filename, merged_header_data, task_data);
+  if cfg_write_merge_output == true
+%    writeOutput (strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"), merged_header_data, task_data);
+    writeOutput (strcat("mergeOutput_", ".xlsx"), merged_header_data, task_data);
   endif
 
   % plot resolugram
@@ -549,7 +560,7 @@ if cfg_replay_animation == true
   %open file pointer
   xls_replay = xlsopen (cfg_replay_animation_filename, true);
 
-  [xls_replay] = oct2xls (data_matrix_int, xls_replay, "jmol replay commands");
+  [xls_replay] = oct2xls (replay_rot_jmol_script, xls_replay, "copy commands to jmol console");
 
   %close file pointer
   [xls_replay] = xlsclose (xls_replay);
@@ -621,45 +632,10 @@ if cfg_gaze_dist_matrix == true
 endif
 % compute gaze_status in relation to canva :  1= ref; 2= int; 0= outside
 if cfg_gaze_status_array == true
-  canvas_int = cell2mat (session_data (session_row,cfg_gaze_cvsInt_cols) ); %top, right, bottom, left side positions.
-  canvas_ref = cell2mat (session_data (session_row,cfg_gaze_cvsRef_cols) ); %top, right, bottom, left side positions.
-  %gaze_status = zeros ( size(gaze_px,1), 1); %n x 1
+  canvas_int = cell2mat (session_data (session_row,cfg_gaze_cvsInt_cols) ); % top, right, bottom, left side positions.
+  canvas_ref = cell2mat (session_data (session_row,cfg_gaze_cvsRef_cols) ); % top, right, bottom, left side positions.
+  gaze_status = zeros ( size(gaze_px,1), 1); % n x 1
   gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt);
-endif
-% Calculate heatmap from time spent in proximity of gaze during entire task
-if cfg_gaze_heatmap == true
-  printf("Calculating transparency gradient.");tic();
-
-  %frame_count, atom_count, gaze_atomInt_dist
-  frame_count = size(gaze_px,1);
-  %initialize
-  atom_gaze_alfa = ref_atom_gaze_alfa = zeros (atom_count,1);
-  dist_ref = dist_int = zeros (frame_count,2,atom_count);
-  dist_ref_exp = dist_int_exp = zeros (frame_count, atom_count);
-  for a=1 : atom_count
-%    for t=1 : size (Q,1)
-    for t=1 : frame_count
-      dist_int(t,1:2,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 , ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
-      dist_ref(t,1:2,a) = [ ( atom_ref_px(a,1) - gaze_px(t,1) ).^2 , ( atom_ref_px(a,2) - gaze_px(t,2) ).^2 ];
-    endfor
-  endfor
-  for c=1:10
-    for a=1 : atom_count
-      cfg_gaussian_wdt = c*20;
-      %gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2) ) dt)
-      % compute and multiply by binary (0/1), testing if gaze is inside the canvas
-      dist_ref_exp = exp (-(dist_ref(:,1,a)+dist_ref(:,2,a))/(2*cfg_gaussian_wdt^2) ) ;
-      dist_int_exp = exp (-(dist_int(:,1,a)+dist_int(:,2,a))/(2*cfg_gaussian_wdt^2) ) ;
-      %sum all
-      ref_atom_gaze_alfa(a) = sum(dist_ref_exp.*(gaze_status==cfg_gaze_status_codeRef) );
-      atom_gaze_alfa(a) = sum(dist_int_exp.*(gaze_status==cfg_gaze_status_codeInt) );
-    endfor
-    %plot(atom_gaze_alfa);
-    xlswrite ("lista_alfas_atomos.xlsx", [cfg_gaussian_wdt;0;ref_atom_gaze_alfa], strcat("ref_",cfg_iRT_taskID), strcat (char (c+64), "2") );
-    xlswrite ("lista_alfas_atomos.xlsx", [cfg_gaussian_wdt;0;atom_gaze_alfa], strcat("int_",cfg_iRT_taskID), strcat (char (c+64), "2") );
-%    printf("transparency gradient files written\n");
-  endfor
-  printf("concluido!");toc();
 endif
 
 % MOVING WINDOW HEATMAP
@@ -709,8 +685,6 @@ if cfg_gaze_heatmap_window == true
   replay_transp_jmol_script_ref = horzcat( replay_ref_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_ref) );
   replay_transp_jmol_script_int = horzcat( replay_rot_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
 
-  printf("Writing jmol commands file (will take some time)...");tic();
   writeOutput_heatmapMw (cfg_heatmap_mw_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
-  printf("done!"); toc();
 endif
 
