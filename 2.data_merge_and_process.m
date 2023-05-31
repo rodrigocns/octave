@@ -208,7 +208,21 @@ endfunction
 % add column with angle distance from reference to plot resolugram
 function resolugram = compute_resolugram (Q, Q_ref)
   resolugram = zeros ( size(Q,1), 1 );
+%  Q_ref = Q_ref / norm(Q_ref); % é necessário??
+%  a_ref = ref_quat_data(1);
+%  b_ref = ref_quat_data(2);
+%  c_ref = ref_quat_data(3);
+%  d_ref = ref_quat_data(4);
+%  ref_matrix_transposed = [d_ref, c_ref, -b_ref, a_ref; -c_ref, d_ref, a_ref, b_ref; b_ref, -a_ref, d_ref, c_ref; -a_ref, -b_ref, -c_ref, d_ref];
+
   for t=1:size(Q,1)
+%    q(t,:) = Q(t,:) / norm ( Q(t,:) );
+%    r = q * ref_matrix_transposed;
+    % q(4) should always be positive
+%    if q(4) < 0
+%      q = -q;
+%    endif
+%    resolugram(t) = abs( acos (q(t,4)) - acos(Q_ref(4)) ) * ( 360/ pi() ) ;
     resolugram(t) = abs( acos (Q(t,4)) - acos(Q_ref(4)) ) * ( 360/ pi() ) ;
   endfor
 endfunction
