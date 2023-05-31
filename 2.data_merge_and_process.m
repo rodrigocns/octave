@@ -37,29 +37,29 @@ cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackage
 
 % obtain needed values from iRT data. Should always be 'true'
 cfg_iRT_process = true;
-cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
-cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
+cfg_iRT_sessionID = 1682699553789; %session ID of the desired task %r 1682707472090
+cfg_iRT_taskID = "mrt"; %task ID of the desired task
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
 cfg_replay_animation_filename = "jmol replay commands.xlsx";
+cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
-cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
-% WRITE output file from task_data (BUGged)
-cfg_write_merge_output = true;
+% WRITE output file from task_data
+cfg_write_merge_output = false;
 
 % read .xyz file with atom data from the used model based on values in session_data
-cfg_xyz_input = true;
+cfg_xyz_input = false;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
 cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
 
 % calculate temporal array of rotated atoms
-cfg_atom_matrix = true;
+cfg_atom_matrix = false;
 cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
 cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
 cfg_atom_matrix_ref_plot = false; %2d scatter of the reference model (figure#3)
@@ -67,7 +67,7 @@ cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#4)
 
 % calculate gaze-canvas distances
-cfg_gaze_dist_matrix = true;
+cfg_gaze_dist_matrix = false;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
 cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
@@ -75,12 +75,12 @@ cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canv
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
 % calculate the status of the gaze in respect to where it is located: inside reference canvas, interactive canvas, or outside both
-cfg_gaze_status_array = true;
+cfg_gaze_status_array = false;
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
 
 % calculate temporal transparency heatmap in 3D
-cfg_gaze_heatmap_window = true;
+cfg_gaze_heatmap_window = false;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
 cfg_heatmap_mw_filename = "translucent temporal heatmap.xlsx";
@@ -187,11 +187,18 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   % find last line of the slice
   last_line= -1;
   for n = first_line : size(raw_arr,1)
-    if not( and( strcmp( raw_arr{n,1}, num2str( session_ID) ), strcmp( raw_arr{n,2}, task_ID) ))
+    %if n is from another task/session..
+    if not ( and ( strcmp ( raw_arr{n,1}, num2str (session_ID) ), strcmp ( raw_arr{n,2}, task_ID) ) )
       last_line = n - 1;
       printf(".last line of slice is %i.", last_line);
       break;
+    %if n is at the last row in file..
+    elseif n == size(raw_arr,1)
+      last_line = n;
+      printf(".last line of slice is %i.", last_line);
+      break;
     endif
+
   endfor
   % get slice of data
   numeric_data = cell2mat( raw_arr( first_line:last_line, desired_iRT_columns) );
@@ -219,7 +226,7 @@ function mergedMatrix = merge_data (eyeT_data, task_data, desired_eyeT_columns)
 endfunction
 
 % write output file from merged data
-function writeOutput_merged (filename, header, task_data)
+function writeOutput_merged (filename, header, task_data, session_data, session_row)
   printf("Writing output file.."); tic();
   % open file pointer
   xls_merged = xlsopen (filename, true);
@@ -517,6 +524,16 @@ if cfg_iRT_process == true
   % compute resolugram data
   resolugram = compute_resolugram (Q, Q_ref);
   task_data = horzcat ( task_data, resolugram );
+
+    % plot resolugram
+  if cfg_plot_resolugram == true
+    figure (1);
+    plot (0.1*(1:frame_count) , resolugram);
+    title (strcat ("Resolugram") );
+    axis ([ 0 frame_count*0.1 0 180 ]);
+    xlabel("Task duration"); ylabel("Distance in degrees");
+  endif
+
 endif
 
 % iRT - eyeTracking data merge. Headers included
@@ -528,18 +545,10 @@ if cfg_data_merge == true
 
   % WRITE output file
   if cfg_write_merge_output == true
-%    writeOutput (strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"), merged_header_data, task_data);
-    writeOutput (strcat("mergeOutput_", ".xlsx"), merged_header_data, task_data);
+%    writeOutput_merged (strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"), merged_header_data, task_data);
+    writeOutput_merged (strcat("mergeOutput_", ".xlsx"), merged_header_data, task_data, session_data, session_row);
   endif
 
-  % plot resolugram
-  if cfg_plot_resolugram == true
-    figure (1);
-    plot (0.1*(1:frame_count) , resolugram);
-    title (strcat ("Resolugram") );
-    axis ([ 0 frame_count*0.1 0 180 ]);
-    xlabel("Task duration"); ylabel("Distance in degrees");
-  endif
 
 endif
 
@@ -648,7 +657,7 @@ if cfg_gaze_heatmap_window == true
   distMw_ref = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
 %  distMw_ref_exp = distMw_int_exp = zeros (frame_count, atom_count); #(t,a)
   exp_distMw_ref = exp_distMw_int = zeros (frame_count, atom_count); #(t,a)
-  ##gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
+  %gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
 
   for a=1 : atom_count
     for t=1 : frame_count
@@ -672,7 +681,7 @@ if cfg_gaze_heatmap_window == true
 
   % for each atom, sums all values inside the moving window ("integrate") and register
   for t=1 : frame_count %building transparency gradient table with moving window
-    %cfg_heatmap_mw_frame_length rule (spans from 's' to 't')
+    %cfg_heatmap_mw_frame_length is the range in frames (0.1 second in 10Hz) for computing the relevance of each atom (spans from 's' to 't')
     s = max([t-cfg_heatmap_mw_frame_length, 1]);
     heatmap_mw_ref(t,1:atom_count) = sum (exp_distMw_ref(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeRef) );
     heatmap_mw_int(t,1:atom_count) = sum (exp_distMw_int(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeInt) );
