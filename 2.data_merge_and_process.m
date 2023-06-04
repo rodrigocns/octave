@@ -39,6 +39,7 @@ cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackage
 cfg_iRT_process = true;
 cfg_iRT_sessionID = 1682699553789; %session ID of the desired task %r 1682707472090
 cfg_iRT_taskID = "mrt"; %task ID of the desired task
+% bolaBastao_c poligonFill mrt
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
@@ -206,25 +207,37 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   printf(".data sliced!\n");
 endfunction
 % add column with angle distance from reference to plot resolugram
-function resolugram = compute_resolugram (Q, Q_ref)
-  resolugram = zeros ( size(Q,1), 1 );
-%  Q_ref = Q_ref / norm(Q_ref); % é necessário??
-%  a_ref = ref_quat_data(1);
-%  b_ref = ref_quat_data(2);
-%  c_ref = ref_quat_data(3);
-%  d_ref = ref_quat_data(4);
-%  ref_matrix_transposed = [d_ref, c_ref, -b_ref, a_ref; -c_ref, d_ref, a_ref, b_ref; b_ref, -a_ref, d_ref, c_ref; -a_ref, -b_ref, -c_ref, d_ref];
+function resolugram = compute_resolugram (Q, Q_ref, cfg_plot_resolugram)
 
+  resolugram = zeros ( size(Q,1), 1 );
+  Q_ref = Q_ref / norm(Q_ref); % é necessário??
+  a_ref = Q_ref(1);
+  b_ref = Q_ref(2);
+  c_ref = Q_ref(3);
+  d_ref = Q_ref(4);
+  ref_matrix_transposed = [d_ref, c_ref, -b_ref, a_ref; -c_ref, d_ref, a_ref, b_ref; b_ref, -a_ref, d_ref, c_ref; -a_ref, -b_ref, -c_ref, d_ref];
+  % n x 4
   for t=1:size(Q,1)
-%    q(t,:) = Q(t,:) / norm ( Q(t,:) );
-%    r = q * ref_matrix_transposed;
+    q(t,:) = Q(t,:) / norm ( Q(t,:) );
+    r(t,:) = q(t,:) * ref_matrix_transposed ;
     % q(4) should always be positive
-%    if q(4) < 0
-%      q = -q;
-%    endif
-%    resolugram(t) = abs( acos (q(t,4)) - acos(Q_ref(4)) ) * ( 360/ pi() ) ;
-    resolugram(t) = abs( acos (Q(t,4)) - acos(Q_ref(4)) ) * ( 360/ pi() ) ;
+    if r(t,4) < 0
+      r(t,:) = -r(t,:);
+    endif
+    resolugram(t) = 2 * acos(r(t,4)) * 180 / pi;
   endfor
+
+    frame_count = size(Q,1);
+
+    % plot resolugram
+  if cfg_plot_resolugram == true
+    figure (1);
+    plot (0.1*(1:frame_count) , resolugram);
+    title (strcat ("Resolugram") );
+    axis ([ 0 frame_count*0.1 0 180 ]);
+    xlabel("Task duration"); ylabel("Distance in degrees");
+  endif
+
 endfunction
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
 function mergedMatrix = merge_data (eyeT_data, task_data, desired_eyeT_columns)
@@ -536,17 +549,8 @@ if cfg_iRT_process == true
   frame_count = size (Q,1);
 
   % compute resolugram data
-  resolugram = compute_resolugram (Q, Q_ref);
+  resolugram = compute_resolugram (Q, Q_ref, cfg_plot_resolugram);
   task_data = horzcat ( task_data, resolugram );
-
-    % plot resolugram
-  if cfg_plot_resolugram == true
-    figure (1);
-    plot (0.1*(1:frame_count) , resolugram);
-    title (strcat ("Resolugram") );
-    axis ([ 0 frame_count*0.1 0 180 ]);
-    xlabel("Task duration"); ylabel("Distance in degrees");
-  endif
 
 endif
 
