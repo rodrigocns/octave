@@ -18,13 +18,8 @@ clear -exclusive *_data;
 % leave 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % read eyeTracking .xlsx input file
-cfg_eyeT_input = true; %slow
+cfg_eyeT_input = true; %slow process
 cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
-
-% (only if necessary) append a column of epoch unix data to the eyeT data array
-cfg_add_epoch_from_milliseconds = true;
-cfg_epoch_ms_col = 3; %time column in milliseconds used to create epoch column
-cfg_epoch_anchor = 1682707674981-5656; %estimated unix epoch at time 0 inside eyetracking data.
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
 cfg_interpolate_missingVal = true;
@@ -32,22 +27,23 @@ cfg_interpolate_cols = [9,10]; % eyeT_data columns that need the interpolation. 
 cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identified and corrected
 
 % read iRT .xlsx input file
-cfg_iRT_input = true; %slow
+cfg_iRT_input = true; %slow process
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 
-% obtain needed values from iRT data. Should always be 'true'
-cfg_iRT_process = true;
-cfg_iRT_sessionID = 1682699553789; %session ID of the desired task %r 1682707472090
-cfg_iRT_taskID = "mrt"; %task ID of the desired task
+% obtain needed values from iRT data. Mandatory
+cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
+cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
+cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
 % bolaBastao_c poligonFill mrt
+%1682699553789 1682707472090
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
-cfg_replay_animation_filename = "jmol replay commands.xlsx";
+cfg_replay_animation_filename = "output_copy_to_jmol_console.xlsx";
 cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
-cfg_data_merge = true;
+cfg_data_merge = false;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
 
@@ -84,8 +80,7 @@ cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was wi
 cfg_gaze_heatmap_window = false;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
-cfg_heatmap_mw_filename = "translucent temporal heatmap.xlsx";
-cfg_heatmap_filename = "translucent heatmap.xlsx";
+
 
 %{
    #=========================================#
@@ -113,13 +108,6 @@ function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   printf(".closing.");
   [xls_eyeT] = xlsclose(xls_eyeT);
   printf(".done! "); toc();
-endfunction
-% add epoch data to a time column counting milliseconds
-function epoch_column = add_epoch (raw_eyeT_data, epoch_column, epoch_anchor)
-  printf("Adding epoch column..");
-  epoch_column = raw_eyeT_data(:,epoch_column);
-  epoch_column = epoch_column + epoch_anchor;
-  printf("Done!\n");
 endfunction
 % interpolate missing eyeT_data
 function interpolated_data = interpolate_missing_data (input_data, columns_to_fix, missing_data)
@@ -207,8 +195,7 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   printf(".data sliced!\n");
 endfunction
 % add column with angle distance from reference to plot resolugram
-function resolugram = compute_resolugram (Q, Q_ref, cfg_plot_resolugram)
-
+function resolugram = compute_resolugram (Q, Q_ref)
   resolugram = zeros ( size(Q,1), 1 );
   Q_ref = Q_ref / norm(Q_ref); % é necessário??
   a_ref = Q_ref(1);
@@ -226,19 +213,18 @@ function resolugram = compute_resolugram (Q, Q_ref, cfg_plot_resolugram)
     endif
     resolugram(t) = 2 * acos(r(t,4)) * 180 / pi;
   endfor
-
-    frame_count = size(Q,1);
-
-    % plot resolugram
-  if cfg_plot_resolugram == true
-    figure (1);
+endfunction
+% function to plot resolugram
+function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
+  frame_count = size(Q,1);
+  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  figure (1);
     plot (0.1*(1:frame_count) , resolugram);
-    title (strcat ("Resolugram") );
+    title (plot_resolugram_title);
     axis ([ 0 frame_count*0.1 0 180 ]);
     xlabel("Task duration"); ylabel("Distance in degrees");
-  endif
-
 endfunction
+
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
 function mergedMatrix = merge_data (eyeT_data, task_data, desired_eyeT_columns)
   %Find nearest indexes in eyeT_data for each time point in iRT_data
@@ -267,6 +253,7 @@ function writeOutput_merged (filename, header, task_data, session_data, session_
   [xls_merged] = xlsclose ( xls_merged);
   printf(".done!"); toc();
 endfunction
+
 % get rowIndex of session/task pair in session_data.
 function rowIndex = get_session_row (session_data, session_ID, task_ID)
   for row = 1 :size(session_data,1)
@@ -276,6 +263,7 @@ function rowIndex = get_session_row (session_data, session_ID, task_ID)
     endif
   endfor
 endfunction
+
 % codify atoms by element|| in:(atom_count,atom_xyz,atom_elem) || out:[size,R,G,B]
 function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
   %used in some graph renderings at the end of this script
@@ -303,6 +291,7 @@ function atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem)
     endswitch
   endfor
 endfunction
+
 % normalize xyz coords so its center of rotation (center of jmol boundingbox ) is 0,0,0
 function norm_atom_xyz = normalize_jmol_rot_center (atom_xyz)
   % get max and min x,y,z coords from the atom_xyz array.
@@ -498,6 +487,9 @@ function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
   printf(".done!"); toc();
 endfunction
 
+function jmol_ref ()
+
+endfunction
 %==========================
 
 %SCRIPTS
@@ -516,16 +508,9 @@ if cfg_eyeT_input == true
 else
   disp("Skipping eyeT file read.");
 endif
-% create eyeT_data and eyeT_header_data from respective raw data by adding epoch column to them
-if cfg_add_epoch_from_milliseconds == true
-  eyeT_data = horzcat( add_epoch (raw_eyeT_data, cfg_epoch_ms_col, cfg_epoch_anchor) , raw_eyeT_data );
-  eyeT_header_data = horzcat ('EyeT Epoch', raw_eyeT_header_data);
-else
-  eyeT_data = raw_eyeT_data;
-endif
 % eyeTracking data pre-process: interpolation of missing data
 if cfg_interpolate_missingVal == true
-  eyeT_data = interpolate_missing_data (eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
+  eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
 endif
 % iRT_data and session_data input (calculates session_row, Q_ref, Q and frame_count with either true or false)
 if cfg_iRT_input == true
@@ -549,9 +534,11 @@ if cfg_iRT_process == true
   frame_count = size (Q,1);
 
   % compute resolugram data
-  resolugram = compute_resolugram (Q, Q_ref, cfg_plot_resolugram);
+  resolugram = compute_resolugram (Q, Q_ref);
   task_data = horzcat ( task_data, resolugram );
-
+  if cfg_plot_resolugram == true
+    plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID);
+  endif
 endif
 
 % iRT - eyeTracking data merge. Headers included
@@ -563,8 +550,7 @@ if cfg_data_merge == true
 
   % WRITE output file
   if cfg_write_merge_output == true
-%    writeOutput_merged (strcat("mergeOutput_", cfg_iRT_taskID, num2str(cfg_iRT_sessionID), ".xlsx"), merged_header_data, task_data);
-    writeOutput_merged (strcat("mergeOutput_", ".xlsx"), merged_header_data, task_data, session_data, session_row);
+    writeOutput_merged (strcat("outputMerge", ".xlsx"), merged_header_data, task_data, session_data, session_row);
   endif
 
 
@@ -583,11 +569,11 @@ if cfg_replay_animation == true
       replay_rot_jmol_script{t} = strcat("moveto 0.1 QUATERNION {", num2str(Q(t,1:4)) , "};");
     endif
   endfor
-  tic(); printf("Writing replay animation jmol commands output file..");
+  tic(); printf("Writing file with jmol commands for replay animation..");
   %open file pointer
   xls_replay = xlsopen (cfg_replay_animation_filename, true);
 
-  [xls_replay] = oct2xls (replay_rot_jmol_script, xls_replay, "copy commands to jmol console");
+  [xls_replay] = oct2xls (replay_rot_jmol_script, xls_replay, "rotaion");
 
   %close file pointer
   [xls_replay] = xlsclose (xls_replay);
@@ -712,6 +698,6 @@ if cfg_gaze_heatmap_window == true
   replay_transp_jmol_script_ref = horzcat( replay_ref_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_ref) );
   replay_transp_jmol_script_int = horzcat( replay_rot_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
 
-  writeOutput_heatmapMw (cfg_heatmap_mw_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
+  writeOutput_heatmapMw (cfg_replay_animation_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
 endif
 
