@@ -19,39 +19,40 @@ clear -exclusive *_data;
 
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = true; %slow process
-cfg_eyeT_input_filename = "raw_eyeT_r.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
+cfg_eyeT_input_filename = "raw_eyeT_e.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
 cfg_interpolate_missingVal = true;
-cfg_interpolate_cols = [9,10]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
+cfg_interpolate_cols = [8,9]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
 cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identified and corrected
 
 % read iRT .xlsx input file
-cfg_iRT_input = true; %slow process
+cfg_iRT_input = false; %slow process
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 
 % obtain needed values from iRT data. Mandatory
 cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
-cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
-cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task
+cfg_iRT_sessionID = 1682699553789; %session ID of the desired task
+cfg_iRT_taskID = "poligonFill"; %task ID of the desired task
 % bolaBastao_c poligonFill mrt
 %1682699553789 1682707472090
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
 cfg_replay_animation_filename = "output_copy_to_jmol_console.xlsx";
-cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
+cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
-cfg_data_merge = false;
+cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
-cfg_eyeT_cols = [1,2,4,7:10]; %range of desired data columns from eyeT_data. epoch data was appended as the first column
+cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
+cfg_plot_resolugram_and_pupil = true; % plot the resolugram graph with pupil diameter data
 
 % WRITE output file from task_data
 cfg_write_merge_output = false;
 
 % read .xyz file with atom data from the used model based on values in session_data
-cfg_xyz_input = false;
+cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
 cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
 
@@ -149,6 +150,7 @@ function interpolated_data = interpolate_missing_data (input_data, columns_to_fi
   endfor
   printf(".values interpolated!\n");
 endfunction
+
 % read data from iRT .xlsx; 'session_arr' has session details, 'raw_arr' has the data bulk in a cell matrix
 function [session_arr, raw_arr] = iRT2oct (filename)
   tic();
@@ -160,6 +162,7 @@ function [session_arr, raw_arr] = iRT2oct (filename)
   printf(".done!");
   toc();
 endfunction
+
 % create data array and its header from slice of iRT data (task data) corresponding to session_ID and task_ID.
 function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, task_ID, desired_iRT_columns)
   % 'desired_iRT_columns' is the range of the desired columns from raw_iRT_data (5:8 or 3,4,5:8)
@@ -225,16 +228,32 @@ function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
 
+% function to plot resolugram with more data (such as pupil diameter)
+function plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series)
+  frame_count = size(Q,1);
+  x_duration = 0.1*(1:frame_count);
+  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+  figure (5);
+    ax = plotyy (x_duration , resolugram, x_duration, extra_series);
+
+    title(plot_resolugram_title);
+    xlabel("Task duration");
+    ylabel(ax(1), "Resolugram - Distance in degrees");
+    ylabel(ax(2), 'Pupil Diameter');
+
+    legend('Resolugram', 'Pupil');
+endfunction
+
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
-function mergedMatrix = merge_data (eyeT_data, task_data, desired_eyeT_columns)
+function mergedMatrix = merge_data (eyeT_data, iRT_data, desired_eyeT_columns)
   %Find nearest indexes in eyeT_data for each time point in iRT_data
   printf("Calculating nearest indexes.");
-  eyeT_time_col = eyeT_data(:, 1); %eyeT epoch
-  iRT_time_col = task_data(:, 1); %iRT epoch
-  [~, nearest_indices] = min(abs(eyeT_time_col - iRT_time_col'));
+  eyeT_epoch_col = eyeT_data(:, 1); %eyeT epoch
+  iRT_epoch_col = iRT_data(:, 1); %iRT epoch
+  [~, nearest_indices] = min(abs(eyeT_epoch_col  - iRT_epoch_col'));
   % Merge desired eyeT_data columns into iRT_data
-  printf(".merging to task_data.");
-  mergedMatrix = [task_data, eyeT_data(nearest_indices, desired_eyeT_columns)];
+  printf(".merging to iRT_data.");
+  mergedMatrix = [iRT_data, eyeT_data(nearest_indices, desired_eyeT_columns)];
   printf(".done!\n");
 endfunction
 
@@ -490,6 +509,7 @@ endfunction
 function jmol_ref ()
 
 endfunction
+
 %==========================
 
 %SCRIPTS
@@ -510,6 +530,10 @@ else
 endif
 % eyeTracking data pre-process: interpolation of missing data
 if cfg_interpolate_missingVal == true
+  % error flag
+  if any ( size ( raw_eyeT_data, 2 ) < cfg_interpolate_cols )
+    error("Warning: The column selected is above the data size.");
+  endif
   eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
 endif
 % iRT_data and session_data input (calculates session_row, Q_ref, Q and frame_count with either true or false)
@@ -524,18 +548,18 @@ if cfg_iRT_process == true
   % obtain row index of chosen task/session inside session_data table
   session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % slice out desired iRT_data from raw_iRT_data (set desired columns in cfg_iRT_cols setting)
-  [task_data, iRT_header_data] = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
+  [iRT_data, iRT_header_data] = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
 
   % obtain quaternion coordinates array (1 x 4) of reference model
   Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
   % obtain quaternion coordinates matrix (t x 4) of interactive model
-  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
+  Q(:,1:4) = iRT_data(:,cfg_atom_matrix_quat_cols);
   % obtain amount of rows/frames/data points from the duration of the executed task
   frame_count = size (Q,1);
 
   % compute resolugram data
   resolugram = compute_resolugram (Q, Q_ref);
-  task_data = horzcat ( task_data, resolugram );
+  iRT_data = horzcat ( iRT_data, resolugram );
   if cfg_plot_resolugram == true
     plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID);
   endif
@@ -544,16 +568,19 @@ endif
 % iRT - eyeTracking data merge. Headers included
 if cfg_data_merge == true
   % merge eyeT data into iRT data
-  task_data = merge_data(eyeT_data, task_data, cfg_eyeT_cols);
+  task_data = merge_data(eyeT_data, iRT_data, cfg_eyeT_cols);
   % merge headers
-  merged_header_data = horzcat(iRT_header_data, "resolugram dist", eyeT_header_data(cfg_eyeT_cols));
+  merged_header_data = horzcat(iRT_header_data, "resolugram dist", raw_eyeT_header_data(cfg_eyeT_cols));
 
   % WRITE output file
   if cfg_write_merge_output == true
     writeOutput_merged (strcat("outputMerge", ".xlsx"), merged_header_data, task_data, session_data, session_row);
   endif
 
-
+  % plot resolugram with pupil data
+  if cfg_plot_resolugram_and_pupil == true
+    plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
+  endif
 endif
 
 % building interaction replay animation from temporal quaternion t x 4 array
