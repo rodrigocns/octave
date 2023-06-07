@@ -18,7 +18,7 @@ clear -exclusive *_data;
 % leave 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % read eyeTracking .xlsx input file
-cfg_eyeT_input = true; %slow process
+cfg_eyeT_input = false; %slow process
 cfg_eyeT_input_filename = "raw_eyeT_e.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
@@ -33,9 +33,11 @@ cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackage
 % obtain needed values from iRT data. Mandatory
 cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
 cfg_iRT_sessionID = 1682699553789; %session ID of the desired task
-cfg_iRT_taskID = "poligonFill"; %task ID of the desired task
+cfg_iRT_taskID = "mrt"; %task ID of the desired task
 % bolaBastao_c poligonFill mrt
 %1682699553789 1682707472090
+% plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data, 11, [3,1,2])
+
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
@@ -233,15 +235,33 @@ function plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID,
   frame_count = size(Q,1);
   x_duration = 0.1*(1:frame_count);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+
   figure (5);
     ax = plotyy (x_duration , resolugram, x_duration, extra_series);
-
     title(plot_resolugram_title);
     xlabel("Task duration");
-    ylabel(ax(1), "Resolugram - Distance in degrees");
-    ylabel(ax(2), 'Pupil Diameter');
+    ylabel (ax(1), "Resolugram - Distance in degrees");
+    ylabel (ax(2), 'Pupil Diameter');
+    axis (ax(1), [0,Inf, 0,180] );
+    axis (ax(2), 'autoy' ); % auto specifies the y-axis length
+%    legend('Resolugram', 'Pupil'); % add legend box
+endfunction
 
-    legend('Resolugram', 'Pupil');
+% function to plot multiple resolugrams with more data
+function plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
+  frame_count = size(Q,1);
+  x_duration = 0.1*(1:frame_count);
+  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+
+  figure (fig_n);
+    subplot (sub_p(1),sub_p(2),sub_p(3));
+    ax = plotyy (x_duration , resolugram, x_duration, extra_series);
+    title(plot_resolugram_title);
+    xlabel("Task duration");
+    ylabel (ax(1), "Resolugram - Distance in degrees");
+    ylabel (ax(2), 'Pupil Diameter');
+    axis (ax(1), [0,Inf, 0,180] );
+    axis (ax(2), 'autoy' ); % auto specifies the y-axis length
 endfunction
 
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
@@ -579,7 +599,8 @@ if cfg_data_merge == true
 
   % plot resolugram with pupil data
   if cfg_plot_resolugram_and_pupil == true
-    plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
+    pupil_data = (task_data(:,13)+task_data(:,14))/2;
+    plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data);
   endif
 endif
 
