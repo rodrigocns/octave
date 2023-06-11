@@ -70,7 +70,7 @@ cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#
 cfg_gaze_dist_matrix = false;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
-cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positionsfrom session_data (in order: top, right, bottom, left)
+cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
