@@ -33,7 +33,7 @@ cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackage
 % obtain needed values from iRT data. Mandatory
 cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
 cfg_iRT_sessionID = 1682699553789; %session ID of the desired task
-cfg_iRT_taskID = "mrt"; %task ID of the desired task
+cfg_iRT_taskID = "mrt"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
 % bolaBastao_c poligonFill mrt
 %1682699553789 1682707472090
 % plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data, 11, [3,1,2])
@@ -41,14 +41,14 @@ cfg_iRT_taskID = "mrt"; %task ID of the desired task
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
-cfg_replay_animation_filename = "output_copy_to_jmol_console.xlsx";
+cfg_replay_animation_filename = ["output_copy_to_jmol_console - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
 cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
-cfg_plot_resolugram_and_pupil = true; % plot the resolugram graph with pupil diameter data
+cfg_plot_resolugram_and_pupil = false; % plot the resolugram graph with pupil diameter data
 
 % WRITE output file from task_data
 cfg_write_merge_output = false;
@@ -431,7 +431,7 @@ function [gaze_nearest_atom_distance,gaze_nearest_atom_index] = fill_nearest_ato
   endfor
 endfunction
 
-% fill gaze_status (if gaze is inside canvas 1 or 2) from gaze pixel position and canvas extremities position in px [top right bottom left]
+% returns gaze_status (if gaze is inside canvas 1 or 2) from gaze pixel position and canvas extremities position in px [top right bottom left]
 function gaze_status = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt)
   frame_count = size(gaze_px, 1);
   %0,0 is top-left corner
@@ -478,7 +478,7 @@ function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, tra
   endif
 endfunction
 
-% writes cell matrix with jmol commands for atoms transparency animation from heatmap_mw_int (or _ref). Needs to horzcat() to replay_rot_jmol_script
+% returns jmol commands cell matrix for atoms transparency animation from heatmap_mw_int (or _ref). Needs to horzcat() to replay_int_jmol_script
 function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_mw)
 
   % building heatmap scale for animation
@@ -524,10 +524,6 @@ function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
   %close file pointer
   [xls_heatmapMw] = xlsclose (xls_heatmapMw);
   printf(".done!"); toc();
-endfunction
-
-function jmol_ref ()
-
 endfunction
 
 %==========================
@@ -606,22 +602,25 @@ endif
 
 % building interaction replay animation from temporal quaternion t x 4 array
 if cfg_replay_animation == true
-  replay_rot_jmol_script = cell(frame_count,1);
-  replay_rot_jmol_script{1} = strcat("moveto 0.0 QUATERNION {", num2str(Q(1,1:4)) , "};");
+  %declare cell matrix
+  replay_int_jmol_script = cell(frame_count,1);
+  %fill first row (all opaque)
+  replay_int_jmol_script{1} = strcat("moveto 0.0 QUATERNION {", num2str(Q(1,1:4)) , "};");
+  % fill rest of rows
   for t=2:frame_count
     if isequal( Q(t,:), Q(t-1,:))
-      %if no rotation was made
-      replay_rot_jmol_script{t} = "delay 0.1;";
+      %if no rotation was made, just delay 0.1 seconds
+      replay_int_jmol_script{t} = "delay 0.1;";
     else
-      %if some rotation was made
-      replay_rot_jmol_script{t} = strcat("moveto 0.1 QUATERNION {", num2str(Q(t,1:4)) , "};");
+      %if some rotation was made, include it in the Jmol commands
+      replay_int_jmol_script{t} = strcat("moveto 0.1 QUATERNION {", num2str(Q(t,1:4)) , "};");
     endif
   endfor
   tic(); printf("Writing file with jmol commands for replay animation..");
   %open file pointer
   xls_replay = xlsopen (cfg_replay_animation_filename, true);
 
-  [xls_replay] = oct2xls (replay_rot_jmol_script, xls_replay, "rotaion");
+  [xls_replay] = oct2xls (replay_int_jmol_script, xls_replay, "rotaion");
 
   %close file pointer
   [xls_replay] = xlsclose (xls_replay);
@@ -699,9 +698,7 @@ if cfg_gaze_status_array == true
   gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt);
 endif
 
-% MOVING WINDOW HEATMAP
-
-% Calculate a moving window heatmap from time spent in proximity of gaze during for the entire task
+% Calculate a moving window heatmap from time spent in proximity of gaze during the entire task
 if cfg_gaze_heatmap_window == true
   printf("Calculating transparency gradient animation (writing may take some minutes):\n");tic();
   %initialize
@@ -744,7 +741,7 @@ if cfg_gaze_heatmap_window == true
   Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
   replay_ref_jmol_script{1} = ["moveto 0 QUATERNION {", num2str(Q_ref(1:4)),"};"];
   replay_transp_jmol_script_ref = horzcat( replay_ref_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_ref) );
-  replay_transp_jmol_script_int = horzcat( replay_rot_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
+  replay_transp_jmol_script_int = horzcat( replay_int_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
 
   writeOutput_heatmapMw (cfg_replay_animation_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
 endif
