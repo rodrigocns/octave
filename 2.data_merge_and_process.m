@@ -54,7 +54,7 @@ cfg_write_merge_output = false;
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
-cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
+cfg_plot_xyz = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
@@ -592,7 +592,7 @@ if cfg_data_merge == true
 
   % plot resolugram with pupil data
   if cfg_plot_resolugram_and_pupil == true
-    pupil_data = (task_data(:,13)+task_data(:,14))/2;
+    pupil_data = ( task_data(:,13) + task_data(:,14) ) / 2;
     plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data);
   endif
 endif
@@ -634,7 +634,7 @@ if cfg_xyz_input == true
   % normalize atom_xyz center of rotation to 0,0,0
   atom_xyz = normalize_jmol_rot_center (atom_xyz);
   %3D scatter of vertices/atoms without rotation
-  if cfg_xyz_plot==true
+  if cfg_plot_xyz==true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (2);
     scatter3 (atom_xyz(:,1), atom_xyz(:,2), atom_xyz(:,3), atom_cor(:,1), atom_cor(:,2:4));
@@ -697,7 +697,7 @@ endif
 
 % Calculate a moving window heatmap from time spent in proximity of gaze during the entire task
 if cfg_gaze_heatmap_window == true
-  printf("Calculating transparency gradient animation (writing may take some minutes):\n");tic();
+  printf("Calculating transparency gradient for replay animation (may take a while):\n");tic();
   %initialize
   heatmap_mw_int = heatmap_mw_ref = zeros (atom_count,1); #(a,1)
   distMw_ref = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
