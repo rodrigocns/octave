@@ -36,8 +36,6 @@ cfg_iRT_sessionID = 1682699553789; %session ID of the desired task
 cfg_iRT_taskID = "mrt"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
 % bolaBastao_c poligonFill mrt
 %1682699553789 1682707472090
-% plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data, 11, [3,1,2])
-
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
@@ -59,7 +57,7 @@ cfg_xyz_col = 11; % index of the column to look for the modelName value in sessi
 cfg_xyz_plot = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
 
 % calculate temporal array of rotated atoms
-cfg_atom_matrix = false;
+cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
 cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
 cfg_atom_matrix_ref_plot = false; %2d scatter of the reference model (figure#3)
@@ -67,7 +65,7 @@ cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#4)
 
 % calculate gaze-canvas distances
-cfg_gaze_dist_matrix = false;
+cfg_gaze_dist_matrix = true;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
 cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positions from session_data (in order: top, right, bottom, left)
@@ -75,12 +73,12 @@ cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canv
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
 % calculate the status of the gaze in respect to where it is located: inside reference canvas, interactive canvas, or outside both
-cfg_gaze_status_array = false;
+cfg_gaze_status_array = true;
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
 
 % calculate temporal transparency heatmap in 3D
-cfg_gaze_heatmap_window = false;
+cfg_gaze_heatmap_window = true;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
 
@@ -456,9 +454,10 @@ function gaze_status = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_co
     endif
   endfor
 endfunction
-% returns string with jmol commands to select atoms of atom_index_array indexes, or return empty string if no index.
+% reads atom_index_array and returns jmol command string to change translucent property in indexed atoms. Returns empty if empty index.
 function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, transl_num)
-  % if atom_index_array is not empty, fill it.
+  % example of a non-empty return: "select atomno=2 or atomno=4 or atomno=29; color atoms TRANSLUCENT 0.375; "
+  % if atom_index_array is not empty
   if ~isempty(atom_index_array)
     current_jmol_script = "select ";
     % filling with the atom indexes
@@ -480,7 +479,6 @@ endfunction
 
 % returns jmol commands cell matrix for atoms transparency animation from heatmap_mw_int (or _ref). Needs to horzcat() to replay_int_jmol_script
 function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_mw)
-
   % building heatmap scale for animation
   for t=1:frame_count
     heatmap_mw_max(t) = max(heatmap_mw(t,:));
@@ -509,12 +507,11 @@ function replay_transp_jmol_script = replay_transparency (frame_count, atom_coun
       replay_transp_jmol_script{t,e+1} = current_jmol_script;
     endfor
   endfor
-
 endfunction
 
 % write file with jmol commands to animate the replay with gaze heatmap in 3D
 function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
-  tic(); printf("Writing heatmap output file..");
+  tic(); printf("Writing file with jmol commands for gaze heatmap animation replay ..");
   %open file pointer
   xls_heatmapMw = xlsopen (filename, true);
 
@@ -616,7 +613,7 @@ if cfg_replay_animation == true
       replay_int_jmol_script{t} = strcat("moveto 0.1 QUATERNION {", num2str(Q(t,1:4)) , "};");
     endif
   endfor
-  tic(); printf("Writing file with jmol commands for replay animation..");
+  tic(); printf("Writing file with jmol commands for rotation animation replay ..");
   %open file pointer
   xls_replay = xlsopen (cfg_replay_animation_filename, true);
 
