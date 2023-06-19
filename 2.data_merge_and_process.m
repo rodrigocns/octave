@@ -660,7 +660,7 @@ if cfg_atom_matrix == true
   % get px coordinates of atoms xy projection (temporal/interactive and static/reference). (0,0) is top-left corner of screen
   atom_int_px = (atomInt_xyzRot(:,1:2,:) * pxAngs_rate) + cvsInt_center;
   atom_ref_px = (atomRef_xyzRot(:,1:2) * pxAngs_rate) + cvsRef_center;
-  %plot above matrix in 2D at time set as cfg_atom_matrix_plot_t
+  %plot interactive model atoms/vertices in 2D at given time set as cfg_atom_matrix_plot_t
   if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atomInt_xyzRot,3) )
     warning("The chosen frame index %i is outside the matrix range. Choose a reasonable frame index");
   elseif cfg_atom_matrix_plot == true
@@ -671,7 +671,7 @@ if cfg_atom_matrix == true
     axis ("equal");
     xlabel("x"); ylabel("y");
   endif
-  %plot above matrix in 2D
+  %plot reference model atoms/vertices in 2D
   if cfg_atom_matrix_ref_plot == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (4);
@@ -695,7 +695,7 @@ if cfg_gaze_status_array == true
   gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt);
 endif
 
-% Calculate a moving window heatmap from time spent in proximity of gaze during the entire task
+% Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
 if cfg_gaze_heatmap_window == true
   printf("Calculating transparency gradient for replay animation (may take a while):\n");tic();
   %initialize
