@@ -46,7 +46,6 @@ cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference 
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
-cfg_plot_resolugram_and_pupil = false; % plot the resolugram graph with pupil diameter data
 
 % WRITE output file from task_data
 cfg_write_merge_output = false;
@@ -590,11 +589,6 @@ if cfg_data_merge == true
     writeOutput_merged (strcat("outputMerge", ".xlsx"), merged_header_data, task_data, session_data, session_row);
   endif
 
-  % plot resolugram with pupil data
-  if cfg_plot_resolugram_and_pupil == true
-    pupil_data = ( task_data(:,13) + task_data(:,14) ) / 2;
-    plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, pupil_data);
-  endif
 endif
 
 % building interaction replay animation from temporal quaternion t x 4 array
