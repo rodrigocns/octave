@@ -75,6 +75,7 @@ cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per an
 cfg_gaze_status_array = true;
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
+cfg_plot_resolugram_gaze_status = true; %plot the resolugram with the line color based in the registered gaze_status
 
 % calculate temporal transparency heatmap in 3D
 cfg_gaze_heatmap_window = true;
@@ -218,6 +219,16 @@ function resolugram = compute_resolugram (Q, Q_ref)
 endfunction
 % function to plot resolugram
 function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
+  frame_count = size(Q,1);
+  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  figure (1);
+    plot (0.1*(1:frame_count) , resolugram);
+    title (plot_resolugram_title);
+    axis ([ 0 frame_count*0.1 0 180 ]);
+    xlabel("Task duration"); ylabel("Distance in degrees");
+endfunction
+% function to plot resolugram with multiple colors
+function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   frame_count = size(Q,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   figure (1);
