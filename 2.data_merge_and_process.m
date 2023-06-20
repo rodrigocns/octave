@@ -73,12 +73,12 @@ cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per an
 
 % calculate the status of the gaze in respect to where it is located: inside reference canvas, interactive canvas, or outside both
 cfg_gaze_status_array = true;
-cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
+cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_plot_resolugram_gaze_status = true; %plot the resolugram with the line color based in the registered gaze_status
 
 % calculate temporal transparency heatmap in 3D
-cfg_gaze_heatmap_window = true;
+cfg_gaze_heatmap_window = false;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
 
@@ -237,11 +237,16 @@ function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_task
   x = 0.1*(0:frame_count-1);
   y = resolugram;
   color_0 = '#808080'; % gray
-  color_1 = 'red';
-  color_2 = 'blue';
-  line_colors = {'#808080', 'red', 'blue'};
+  color_1 = 'blue';
+  color_2 = 'red';
+  line_colors = {color_0, color_1, color_2};
   figure (9);
   hold on;
+  % samples for the graph legend
+  plot (x(1),y(1),'color', line_colors{1}, 'linewidth', 1.0 );
+  plot (x(1),y(1),'color', line_colors{2}, 'linewidth', 1.0 );
+  plot (x(1),y(1),'color', line_colors{3}, 'linewidth', 1.0 );
+
   % plotting
   current_status = gaze_status(1);
   ln_len = 0;
@@ -257,9 +262,10 @@ function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_task
   endfor
   hold off;
   % Descriptions
+  legend ('outside', 'Reference model', 'Interactive model');
   title (plot_resolugram_title);
-    axis ([ 0 frame_count*0.1 0 180 ]);
-    xlabel("Task duration"); ylabel("Distance in degrees");
+  axis ([ 0 frame_count*0.1 0 180 ]);
+  xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
 
 % function to plot resolugram with more data (such as pupil diameter)
@@ -276,7 +282,6 @@ function plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID,
     ylabel (ax(2), 'Pupil Diameter');
     axis (ax(1), [0,Inf, 0,180] );
     axis (ax(2), 'autoy' ); % auto specifies the y-axis length
-%    legend('Resolugram', 'Pupil'); % add legend box
 endfunction
 
 % function to plot multiple resolugrams with more data
