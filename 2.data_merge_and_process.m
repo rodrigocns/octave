@@ -220,20 +220,44 @@ endfunction
 % function to plot resolugram
 function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
   frame_count = size(Q,1);
+  x = 0.1*(0:frame_count-1);
+  y = resolugram;
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   figure (1);
-    plot (0.1*(1:frame_count) , resolugram);
+    plot (x , y);
     title (plot_resolugram_title);
     axis ([ 0 frame_count*0.1 0 180 ]);
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
-% function to plot resolugram with multiple colors
+% function to plot resolugram with multiple colors (needs gaze_status values)
 function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+  % computations
   frame_count = size(Q,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
-  figure (1);
-    plot (0.1*(1:frame_count) , resolugram);
-    title (plot_resolugram_title);
+  x = 0.1*(0:frame_count-1);
+  y = resolugram;
+  color_0 = '#808080'; % gray
+  color_1 = 'red';
+  color_2 = 'blue';
+  line_colors = {'#808080', 'red', 'blue'};
+  figure (9);
+  hold on;
+  % plotting
+  current_status = gaze_status(1);
+  ln_len = 0;
+  for i=2:frame_count
+    ln_len = ln_len+1;
+    if or ( i == frame_count, gaze_status(i) != current_status)
+      %plot colored line segment
+      plot ( x(i-ln_len:i), y(i-ln_len:i), 'color', line_colors{current_status+1}, 'linewidth', 1.0 );
+      %prepare for next line segment
+      current_status = gaze_status(i);
+      ln_len = 0;
+    endif
+  endfor
+  hold off;
+  % Descriptions
+  title (plot_resolugram_title);
     axis ([ 0 frame_count*0.1 0 180 ]);
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
@@ -698,6 +722,10 @@ if cfg_gaze_status_array == true
   canvas_ref = cell2mat (session_data (session_row,cfg_gaze_cvsRef_cols) ); % top, right, bottom, left side positions.
   gaze_status = zeros ( size(gaze_px,1), 1); % n x 1
   gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt);
+endif
+% plot resolugram colored with gaze_status
+if cfg_plot_resolugram_gaze_status == true
+  plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
 endif
 
 % Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
