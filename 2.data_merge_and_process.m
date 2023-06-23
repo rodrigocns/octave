@@ -229,8 +229,9 @@ function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
     axis ([ 0 frame_count*0.1 0 180 ]);
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
+
 % function to plot resolugram with multiple colors (needs gaze_status values)
-function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+function plot_resolugram_colored_line (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
   frame_count = size(Q,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
@@ -240,14 +241,14 @@ function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_task
   color_1 = 'blue';
   color_2 = 'red';
   line_colors = {color_0, color_1, color_2};
-  figure (9);
+  figure (10);
   hold on;
   % samples for the graph legend
   plot (x(1),y(1),'color', line_colors{1}, 'linewidth', 1.0 );
   plot (x(1),y(1),'color', line_colors{2}, 'linewidth', 1.0 );
   plot (x(1),y(1),'color', line_colors{3}, 'linewidth', 1.0 );
 
-  % plotting
+  % plot line with colored segments
   current_status = gaze_status(1);
   ln_len = 0;
   for i=2:frame_count
@@ -260,6 +261,51 @@ function plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_task
       ln_len = 0;
     endif
   endfor
+
+  hold off;
+  % Descriptions
+  legend ('outside', 'Reference model', 'Interactive model');
+  title (plot_resolugram_title);
+  axis ([ 0 frame_count*0.1 0 180 ]);
+  xlabel("Task duration"); ylabel("Distance in degrees");
+endfunction
+
+
+% function to plot resolugram with multiple colors (needs gaze_status values)
+function plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+  % computations
+  frame_count = size(Q,1);
+  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  x = 0.1*(0:frame_count-1);
+  y = resolugram;
+  color_0 = '#808080'; % gray
+  color_1 = 'blue';
+  color_2 = 'red';
+  line_colors = {color_0, color_1, color_2};
+  bg_colors = {'#f0f0f0', '#e0e0ff', '#ffe0e0'};
+  figure (9);
+  hold on;
+  % samples for the graph legend
+  plot (x(1),y(1),'color', bg_colors{1}, 'linewidth', 5.0 );
+  plot (x(1),y(1),'color', bg_colors{2}, 'linewidth', 5.0 );
+  plot (x(1),y(1),'color', bg_colors{3}, 'linewidth', 5.0 );
+
+  % plot gray line with colored background
+  current_status = gaze_status(1);
+  ln_len = 0; % length of the line segment
+  x_left = 0; % left corner of each rectangle
+  for i=2:frame_count
+    ln_len = ln_len+1;
+    if i == frame_count || gaze_status(i) != current_status
+      %plot colored line segment
+      rectangle ( 'Position', [ (i-1-ln_len)/10 , 0, ln_len/10, 180], 'FaceColor', bg_colors{current_status+1}, 'EdgeColor', 'none');
+      %prepare for next line segment
+      current_status = gaze_status(i);
+      ln_len = 0;
+    endif
+  endfor
+  plot ( x, y, 'color', '#808080', 'linewidth', 1.0 );
+%  rectangle('Position',[24,0,2,180], 'FaceColor', [0.9 0.9 0.9],  'EdgeColor', 'none');
   hold off;
   % Descriptions
   legend ('outside', 'Reference model', 'Interactive model');
@@ -730,7 +776,7 @@ if cfg_gaze_status_array == true
 endif
 % plot resolugram colored with gaze_status
 if cfg_plot_resolugram_gaze_status == true
-  plot_resolugram_colored (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+  plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
 endif
 
 % Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
