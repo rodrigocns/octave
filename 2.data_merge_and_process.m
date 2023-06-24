@@ -230,7 +230,7 @@ function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
 
-% function to plot resolugram with multiple colors (needs gaze_status values)
+% function to plot resolugram with line colors (needs gaze_status values)
 function plot_resolugram_colored_line (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
   frame_count = size(Q,1);
@@ -268,22 +268,22 @@ function plot_resolugram_colored_line (Q, resolugram, cfg_iRT_sessionID, cfg_iRT
   title (plot_resolugram_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
   xlabel("Task duration"); ylabel("Distance in degrees");
+  set(gca, 'ytick', 0:30:180);
 endfunction
 
 
-% function to plot resolugram with multiple colors (needs gaze_status values)
+% function to plot resolugram with background colors (needs gaze_status values)
 function plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
   frame_count = size(Q,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
   y = resolugram;
-  color_0 = '#808080'; % gray
-  color_1 = 'blue';
-  color_2 = 'red';
-  line_colors = {color_0, color_1, color_2};
-  bg_colors = {'#f0f0f0', '#e0e0ff', '#ffe0e0'};
-  figure (9);
+  color_0 = '#f0f0f0'; %outside
+  color_1 = '#9090ff'; %Reference
+  color_2 = '#ff9090'; %Interactive
+  bg_colors = {color_0, color_1, color_2};
+  figure (8);
   hold on;
   % samples for the graph legend
   plot (x(1),y(1),'color', bg_colors{1}, 'linewidth', 5.0 );
@@ -304,30 +304,15 @@ function plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_t
       ln_len = 0;
     endif
   endfor
-  plot ( x, y, 'color', '#808080', 'linewidth', 1.0 );
-%  rectangle('Position',[24,0,2,180], 'FaceColor', [0.9 0.9 0.9],  'EdgeColor', 'none');
+  % plot the angular distance line
+  plot ( x, y, 'color', '#000000', 'linewidth', 1.0 );
   hold off;
   % Descriptions
   legend ('outside', 'Reference model', 'Interactive model');
   title (plot_resolugram_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
   xlabel("Task duration"); ylabel("Distance in degrees");
-endfunction
-
-% function to plot resolugram with more data (such as pupil diameter)
-function plot_resolugram_xtra (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series)
-  frame_count = size(Q,1);
-  x_duration = 0.1*(1:frame_count);
-  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
-
-  figure (5);
-    ax = plotyy (x_duration , resolugram, x_duration, extra_series);
-    title(plot_resolugram_title);
-    xlabel("Task duration");
-    ylabel (ax(1), "Resolugram - Distance in degrees");
-    ylabel (ax(2), 'Pupil Diameter');
-    axis (ax(1), [0,Inf, 0,180] );
-    axis (ax(2), 'autoy' ); % auto specifies the y-axis length
+  set(gca, 'ytick', 0:30:180);
 endfunction
 
 % function to plot multiple resolugrams with more data
