@@ -12,33 +12,42 @@ https://wiki.octave.org/IO_package
 %}
 
 % clear all but the slowest variables to obtain
-clear -exclusive *_data;
+clear -exclusive *_data *_safe;
 
 % SETTINGS
 % leave 'true' to let the script calculate (or recalculate/read/write again) the described values
 
+% obtain needed values from iRT data. Mandatory
+cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
+cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
+cfg_iRT_taskID = "poligonFill"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
+%sample sessionIDs:    1682699553789    1682707472090    (sbj me)
+%sample taskIDs:    bolaBastao_c    poligonFill    mrt
+
+%{
+plot_resolugram_multi (resolugram1_safe, "S1, task: bolaBastao", 15, [3,2,1])
+plot_resolugram_multi (resolugram2_safe, "S2, task: bolaBastao", 15, [3,2,2])
+plot_resolugram_multi (resolugram3_safe, "S1, task: poligonFill", 15, [3,2,3])
+plot_resolugram_multi (resolugram4_safe, "S2, task: poligonFill", 15, [3,2,4])
+plot_resolugram_multi (resolugram5_safe, "S1, task: mrt", 15, [3,2,5])
+plot_resolugram_multi (resolugram6_safe, "S2, task: mrt", 15, [3,2,6])
+%}
+
+% read iRT .xlsx input file
+cfg_iRT_input = true; %slow process
+cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = false; %slow process
-cfg_eyeT_input_filename = "raw_eyeT_e.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
+cfg_eyeT_input_filename = "raw_eyeT_1682707472090.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
 cfg_interpolate_missingVal = true;
 cfg_interpolate_cols = [8,9]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
 cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identified and corrected
 
-% read iRT .xlsx input file
-cfg_iRT_input = false; %slow process
-cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
-
-% obtain needed values from iRT data. Mandatory
-cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
-cfg_iRT_sessionID = 1682699553789; %session ID of the desired task
-cfg_iRT_taskID = "mrt"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
-% bolaBastao_c poligonFill mrt
-%1682699553789 1682707472090
-
 % compute and write file with table of jmol commands for the replay animation
-cfg_replay_animation = true;
+cfg_replay_animation = false;
 cfg_replay_animation_filename = ["output_copy_to_jmol_console - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
 cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
@@ -78,7 +87,7 @@ cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was wi
 cfg_plot_resolugram_gaze_status = true; %plot the resolugram with the line color based in the registered gaze_status
 
 % calculate temporal transparency heatmap in 3D
-cfg_gaze_heatmap_window = false;
+cfg_gaze_heatmap_window = true;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
 
@@ -218,8 +227,8 @@ function resolugram = compute_resolugram (Q, Q_ref)
   endfor
 endfunction
 % function to plot resolugram
-function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
-  frame_count = size(Q,1);
+function plot_resolugram (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
+  frame_count = size(resolugram,1);
   x = 0.1*(0:frame_count-1);
   y = resolugram;
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
@@ -231,9 +240,9 @@ function plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
 endfunction
 
 % function to plot resolugram with line colors (needs gaze_status values)
-function plot_resolugram_colored_line (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+function plot_resolugram_colored_line (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
-  frame_count = size(Q,1);
+  frame_count = size(resolugram,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
   y = resolugram;
@@ -273,9 +282,9 @@ endfunction
 
 
 % function to plot resolugram with background colors (needs gaze_status values)
-function plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+function plot_resolugram_colored_bg (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
-  frame_count = size(Q,1);
+  frame_count = size(resolugram,1);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
   y = resolugram;
@@ -311,17 +320,35 @@ function plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_t
   legend ('outside', 'Reference model', 'Interactive model');
   title (plot_resolugram_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
-  xlabel("Task duration"); ylabel("Distance in degrees");
+  xlabel("Task duration"); ylabel("Angular Disparity");
   set(gca, 'ytick', 0:30:180);
 endfunction
 
+% function to plot multiple resolugrams
+function plot_resolugram_multi (resolugram, plot_resolugram_title, fig_n, sub_p)
+  frame_count = size(resolugram,1);
+  x_duration = 0.1*(1:frame_count);
+
+  % fig_n is a unique pointer to a plot. If two plots have the same pointer, one of them will be overwritten
+  figure (fig_n);
+    % subplot: rows, columns, index of selected plot
+    subplot (sub_p(1),sub_p(2),sub_p(3));
+    ax = plot (x_duration , resolugram);
+    title(plot_resolugram_title);
+    xlabel("Task duration");
+    ylabel ("Angular Disparity");
+    axis ([0,Inf, 0,180] );
+    set(gca, 'ytick', 0:45:180);
+endfunction
+
 % function to plot multiple resolugrams with more data
-function plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
-  frame_count = size(Q,1);
+function plot_resolugram_multi_yy (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
+  frame_count = size(resolugram,1);
   x_duration = 0.1*(1:frame_count);
   plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
 
   figure (fig_n);
+    % subplot: rows, columns, index of selected plot
     subplot (sub_p(1),sub_p(2),sub_p(3));
     ax = plotyy (x_duration , resolugram, x_duration, extra_series);
     title(plot_resolugram_title);
@@ -333,7 +360,7 @@ function plot_resolugram_multi (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID
 endfunction
 
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
-function mergedMatrix = merge_data (eyeT_data, iRT_data, desired_eyeT_columns)
+function mergedMatrix = merge_data (iRT_data, eyeT_data, desired_eyeT_columns)
   %Find nearest indexes in eyeT_data for each time point in iRT_data
   printf("Calculating nearest indexes.");
   eyeT_epoch_col = eyeT_data(:, 1); %eyeT epoch
@@ -651,7 +678,7 @@ endif
 % iRT - eyeTracking data merge. Headers included
 if cfg_data_merge == true
   % merge eyeT data into iRT data
-  task_data = merge_data(eyeT_data, iRT_data, cfg_eyeT_cols);
+  task_data = merge_data(iRT_data, eyeT_data, cfg_eyeT_cols);
   % merge headers
   merged_header_data = horzcat(iRT_header_data, "resolugram dist", raw_eyeT_header_data(cfg_eyeT_cols));
 
@@ -761,13 +788,13 @@ if cfg_gaze_status_array == true
 endif
 % plot resolugram colored with gaze_status
 if cfg_plot_resolugram_gaze_status == true
-  plot_resolugram_colored_bg (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+  plot_resolugram_colored_bg (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status);
 endif
 
 % Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
 if cfg_gaze_heatmap_window == true
   printf("Calculating transparency gradient for replay animation (may take a while):\n");tic();
-  %initialize
+  %declaring variables
   heatmap_mw_int = heatmap_mw_ref = zeros (atom_count,1); #(a,1)
   distMw_ref = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
 %  distMw_ref_exp = distMw_int_exp = zeros (frame_count, atom_count); #(t,a)
