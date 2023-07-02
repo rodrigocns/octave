@@ -15,12 +15,12 @@ https://wiki.octave.org/IO_package
 clear -exclusive *_data *_safe;
 
 % SETTINGS
-% leave 'true' to let the script calculate (or recalculate/read/write again) the described values
+% set 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % obtain needed values from iRT data. Mandatory
 cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
-cfg_iRT_taskID = "poligonFill"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
+cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
 %sample sessionIDs:    1682699553789    1682707472090    (sbj me)
 %sample taskIDs:    bolaBastao_c    poligonFill    mrt
 
@@ -34,20 +34,20 @@ plot_resolugram_multi (resolugram6_safe, "S2, task: mrt", 15, [3,2,6])
 %}
 
 % read iRT .xlsx input file
-cfg_iRT_input = true; %slow process
+cfg_iRT_input = true; %slow process. Set true to read a new file
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 
 % read eyeTracking .xlsx input file
-cfg_eyeT_input = false; %slow process
+cfg_eyeT_input = true; %slow process. Set true to read a new file
 cfg_eyeT_input_filename = "raw_eyeT_1682707472090.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
-% fix missing pupil data by linear interpolation (best to always leave on with a new data arrays)
+% fix missing pupil data by linear interpolation (best to always leave on with a new data array)
 cfg_interpolate_missingVal = true;
 cfg_interpolate_cols = [8,9]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
 cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identified and corrected
 
 % compute and write file with table of jmol commands for the replay animation
-cfg_replay_animation = false;
+cfg_replay_animation = true;
 cfg_replay_animation_filename = ["output_copy_to_jmol_console - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
 cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
@@ -55,9 +55,7 @@ cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference 
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
-
-% WRITE output file from task_data
-cfg_write_merge_output = false;
+cfg_write_merge_output = false; % WRITE output file from task_data
 
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
@@ -66,7 +64,7 @@ cfg_plot_xyz = false; % DRAW scatter3 of the array of atoms colored acording to 
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
-cfg_atom_matrix_quat_cols = [3:6]; % quaternion index of columns inside task_data array
+cfg_atom_matrix_quat_cols = [3:6]; % column indexes of quaternions inside task_data array. Jmol quaternions order: [i j k r]
 cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
 cfg_atom_matrix_ref_plot = false; %2d scatter of the reference model (figure#3)
 cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time (figure#4)
@@ -108,7 +106,7 @@ function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   %raw_eyeT_data = xlsread (filename);
   xls_eyeT = xlsopen(filename);
 
-  printf(".reading (this can take time).");
+  printf(".reading (lengthy step).");
   cell_data = xls2oct(xls_eyeT);
   printf(".parsing.");
   raw_eyeT_header_data = cell(cell_data(1,:));
@@ -117,7 +115,7 @@ function [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (filename)
   %closing file pointer
   printf(".closing.");
   [xls_eyeT] = xlsclose(xls_eyeT);
-  printf(".done! "); toc();
+  printf(".OK! "); toc();
 endfunction
 % interpolate missing eyeT_data
 function interpolated_data = interpolate_missing_data (input_data, columns_to_fix, missing_data)
@@ -132,7 +130,7 @@ function interpolated_data = interpolate_missing_data (input_data, columns_to_fi
     while ismember (interpolated_data(first_valid_line,col), missing_data)
       first_valid_line++;
     endwhile
-    printf("[1st valid line = %i].",first_valid_line);
+    printf("[1st valid row = %i].",first_valid_line);
     % find missing values beyond 1st valid line/value
     for line=first_valid_line+1:size(input_data,1)
       if ismember (interpolated_data(line,col), missing_data)
@@ -157,18 +155,18 @@ function interpolated_data = interpolate_missing_data (input_data, columns_to_fi
       endif
     endfor
   endfor
-  printf(".values interpolated!\n");
+  printf(".OK!\n");
 endfunction
 
 % read data from iRT .xlsx; 'session_arr' has session details, 'raw_arr' has the data bulk in a cell matrix
 function [session_arr, raw_arr] = iRT2oct (filename)
   tic();
-  printf("Reading iRT data (this can take a while)..");
+  printf("Reading iRT data (lengthy step)..");
   xls_iRT = xlsopen(filename);
   session_arr = xls2oct(xls_iRT,"sessions");
   raw_arr = xls2oct(xls_iRT,"data");
   [xls_iRT] = xlsclose(xls_iRT);
-  printf(".done!");
+  printf(".OK!");
   toc();
 endfunction
 
@@ -181,7 +179,7 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   for n = 1 :size(raw_arr,1)
     if and( strcmp(raw_arr{n,1},num2str(session_ID)), strcmp(raw_arr{n,2}, task_ID) )
       first_line = n;
-      printf(".first line of slice is %i.", first_line);
+      printf(".[1st slice row: %i].", first_line);
       break;
     endif
   endfor
@@ -191,12 +189,12 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
     %if n is from another task/session..
     if not ( and ( strcmp ( raw_arr{n,1}, num2str (session_ID) ), strcmp ( raw_arr{n,2}, task_ID) ) )
       last_line = n - 1;
-      printf(".last line of slice is %i.", last_line);
+      printf(".[last slice row: %i].", last_line);
       break;
     %if n is at the last row in file..
     elseif n == size(raw_arr,1)
       last_line = n;
-      printf(".last line of slice is %i.", last_line);
+      printf(".[last slice row: %i].", last_line);
       break;
     endif
 
@@ -204,7 +202,7 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   % get slice of data
   numeric_data = cell2mat( raw_arr( first_line:last_line, desired_iRT_columns) );
   header_data = cell(raw_arr(1,desired_iRT_columns));
-  printf(".data sliced!\n");
+  printf(".OK! \n");
 endfunction
 % add column with angle distance from reference to plot resolugram
 function resolugram = compute_resolugram (Q, Q_ref)
@@ -369,7 +367,7 @@ function mergedMatrix = merge_data (iRT_data, eyeT_data, desired_eyeT_columns)
   % Merge desired eyeT_data columns into iRT_data
   printf(".merging to iRT_data.");
   mergedMatrix = [iRT_data, eyeT_data(nearest_indices, desired_eyeT_columns)];
-  printf(".done!\n");
+  printf(".OK!\n");
 endfunction
 
 % write output file from merged data
@@ -385,7 +383,7 @@ function writeOutput_merged (filename, header, task_data, session_data, session_
 
   % close file pointer
   [xls_merged] = xlsclose ( xls_merged);
-  printf(".done!"); toc();
+  printf(".OK!"); toc();
 endfunction
 
 % get rowIndex of session/task pair in session_data.
@@ -459,7 +457,7 @@ function [atom_count, elem, atom_coords] = get_xyz_data (filename)
     atom_coords(i, :) = str2double(line_data(2:4));
   end
   fclose(fid);
-  printf(" sucess! \n");
+  printf(" OK! \n");
 endfunction
 
 % return rotation matrix {R} from a quaternion {i,j,k,real}
@@ -608,7 +606,7 @@ endfunction
 
 % write file with jmol commands to animate the replay with gaze heatmap in 3D
 function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
-  tic(); printf("Writing file with jmol commands for gaze heatmap animation replay ..");
+  tic(); printf(["Writing jmol commands in file '",filename,"' for gaze heatmap animation replay .."]);
   %open file pointer
   xls_heatmapMw = xlsopen (filename, true);
 
@@ -617,20 +615,20 @@ function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
 
   %close file pointer
   [xls_heatmapMw] = xlsclose (xls_heatmapMw);
-  printf(".done!"); toc();
+  printf(".OK!"); toc();
 endfunction
 
 %==========================
 
 %SCRIPTS
 % data checks for the slowest functions!
-if and ( exist('raw_eyeT_data', 'var') == 0 , cfg_eyeT_input == false)
-  warning("The eyeTracking data source is missing! Changing cfg_eyeT_input to true \n");
-  cfg_eyeT_input = true;
-endif
 if and ( exist('raw_iRT_data', 'var') == 0 , cfg_iRT_input == false)
-  warning("The iRT data source is missing! Changing cfg_iRT_input to true \n");
+  warning("The iRT data source is missing! Changed cfg_iRT_input to true for this execution.\n");
   cfg_iRT_input = true;
+endif
+if and ( exist('raw_eyeT_data', 'var') == 0 , cfg_eyeT_input == false)
+  warning("The eyeTracking data source is missing! Changed cfg_eyeT_input to true for this execution.\n");
+  cfg_eyeT_input = true;
 endif
 % eyetracking data input (eyeT2oct)
 if cfg_eyeT_input == true
@@ -689,7 +687,7 @@ if cfg_data_merge == true
 
 endif
 
-% building interaction replay animation from temporal quaternion t x 4 array
+% building interaction replay animation from temporal quaternion (t x 4 array)
 if cfg_replay_animation == true
   %declare cell matrix
   replay_int_jmol_script = cell(frame_count,1);
@@ -713,7 +711,7 @@ if cfg_replay_animation == true
 
   %close file pointer
   [xls_replay] = xlsclose (xls_replay);
-  printf(".done!"); toc();
+  printf(".OK!"); toc();
 endif
 
 
