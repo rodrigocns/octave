@@ -48,19 +48,19 @@ cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identifi
 
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
-cfg_replay_animation_filename = ["output_copy_to_jmol_console - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
-cfg_plot_resolugram = false; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
+cfg_replay_animation_filename = ["output_copy_to_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
+cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
-cfg_write_merge_output = false; % WRITE output file from task_data
+cfg_write_merge_output = true; % WRITE output file from task_data
 
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
-cfg_plot_xyz = false; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
+cfg_plot_xyz = true; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
@@ -207,7 +207,7 @@ endfunction
 % add column with angle distance from reference to plot resolugram
 function resolugram = compute_resolugram (Q, Q_ref)
   resolugram = zeros ( size(Q,1), 1 );
-  Q_ref = Q_ref / norm(Q_ref); % é necessário??
+  Q_ref = Q_ref / norm(Q_ref);
   a_ref = Q_ref(1);
   b_ref = Q_ref(2);
   c_ref = Q_ref(3);
@@ -221,9 +221,13 @@ function resolugram = compute_resolugram (Q, Q_ref)
     if r(t,4) < 0
       r(t,:) = -r(t,:);
     endif
-    resolugram(t) = 2 * acos(r(t,4)) * 180 / pi;
+    % compute angle disparity in radians
+    resolugram(t) = 2 * acos(r(t,4));
+    % transform radians to degrees
+    resolugram(t) = resolugram(t) * 180 / pi;
   endfor
 endfunction
+
 % function to plot resolugram
 function plot_resolugram (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
   frame_count = size(resolugram,1);
