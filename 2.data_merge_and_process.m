@@ -25,12 +25,12 @@ cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task. Avoid using unsup
 %sample taskIDs:    bolaBastao_c    poligonFill    mrt
 
 %{
-plot_resolugram_multi (resolugram1_safe, "S1, task: bolaBastao", 15, [3,2,1])
-plot_resolugram_multi (resolugram2_safe, "S2, task: bolaBastao", 15, [3,2,2])
-plot_resolugram_multi (resolugram3_safe, "S1, task: poligonFill", 15, [3,2,3])
-plot_resolugram_multi (resolugram4_safe, "S2, task: poligonFill", 15, [3,2,4])
-plot_resolugram_multi (resolugram5_safe, "S1, task: mrt", 15, [3,2,5])
-plot_resolugram_multi (resolugram6_safe, "S2, task: mrt", 15, [3,2,6])
+plot_angDisp_multi (angDisp1_safe, "S1, task: bolaBastao", 15, [3,2,1])
+plot_angDisp_multi (angDisp2_safe, "S2, task: bolaBastao", 15, [3,2,2])
+plot_angDisp_multi (angDisp3_safe, "S1, task: poligonFill", 15, [3,2,3])
+plot_angDisp_multi (angDisp4_safe, "S2, task: poligonFill", 15, [3,2,4])
+plot_angDisp_multi (angDisp5_safe, "S1, task: mrt", 15, [3,2,5])
+plot_angDisp_multi (angDisp6_safe, "S2, task: mrt", 15, [3,2,6])
 %}
 
 % read iRT .xlsx input file
@@ -49,7 +49,7 @@ cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identifi
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
 cfg_replay_animation_filename = ["output_copy_to_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
-cfg_plot_resolugram = true; % DRAW resolugram plot (distance between reference and interactive models, in degrees) (figure#1)
+cfg_plot_angDisp = true; % DRAW angular disparity plot (distance between target and interactive models, in degrees) (figure#1)
 
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
@@ -65,8 +65,8 @@ cfg_plot_xyz = true; % DRAW scatter3 of the array of atoms colored acording to a
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % column indexes of quaternions inside task_data array. Jmol quaternions order: [i j k r]
-cfg_atom_matrix_ref_cols = [7:10]; % column indexes for the reference quaternion values inside session_data ("ref_i","ref_j","ref_k","ref_theta")
-cfg_atom_matrix_ref_plot = false; %2d scatter of the reference model (figure#3)
+cfg_atom_matrix_tgt_cols = [7:10]; % column indexes for the target quaternion values inside session_data ("tgt_i","tgt_j","tgt_k","tgt_theta")
+cfg_atom_matrix_tgt_plot = false; %2d scatter of the target model (figure#3)
 cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time (figure#4)
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#4)
 
@@ -74,15 +74,15 @@ cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#
 cfg_gaze_dist_matrix = true;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
-cfg_gaze_cvsRef_cols = [14,15,16,17]; % column indexes of reference model canvas positions from session_data (in order: top, right, bottom, left)
+cfg_gaze_cvsTgt_cols = [14,15,16,17]; % column indexes of target model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
-% calculate the status of the gaze in respect to where it is located: inside reference canvas, interactive canvas, or outside both
+% calculate the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or outside both
 cfg_gaze_status_array = true;
-cfg_gaze_status_codeRef = 1; %condition in gaze_status, meaning that gaze was within Reference model canvas
+cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target model canvas
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
-cfg_plot_resolugram_gaze_status = true; %plot the resolugram with the line color based in the registered gaze_status
+cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line color based in the registered gaze_status
 
 % calculate temporal transparency heatmap in 3D
 cfg_gaze_heatmap_window = true;
@@ -204,50 +204,50 @@ function [numeric_data, header_data] = slice_task_data (raw_arr, session_ID, tas
   header_data = cell(raw_arr(1,desired_iRT_columns));
   printf(".OK! \n");
 endfunction
-% add column with angle distance from reference to plot resolugram
-function resolugram = compute_resolugram (Q, Q_ref)
-  resolugram = zeros ( size(Q,1), 1 );
-  Q_ref = Q_ref / norm(Q_ref);
-  a_ref = Q_ref(1);
-  b_ref = Q_ref(2);
-  c_ref = Q_ref(3);
-  d_ref = Q_ref(4);
-  ref_matrix_transposed = [d_ref, c_ref, -b_ref, a_ref; -c_ref, d_ref, a_ref, b_ref; b_ref, -a_ref, d_ref, c_ref; -a_ref, -b_ref, -c_ref, d_ref];
+% add column with angle disparity to plot angular disparity
+function angDisp = compute_angDisp (Q, Q_tgt)
+  angDisp = zeros ( size(Q,1), 1 );
+  Q_tgt = Q_tgt / norm(Q_tgt);
+  a_tgt = Q_tgt(1);
+  b_tgt = Q_tgt(2);
+  c_tgt = Q_tgt(3);
+  d_tgt = Q_tgt(4);
+  tgt_matrix_transposed = [d_tgt, c_tgt, -b_tgt, a_tgt; -c_tgt, d_tgt, a_tgt, b_tgt; b_tgt, -a_tgt, d_tgt, c_tgt; -a_tgt, -b_tgt, -c_tgt, d_tgt];
   % n x 4
   for t=1:size(Q,1)
     q(t,:) = Q(t,:) / norm ( Q(t,:) );
-    r(t,:) = q(t,:) * ref_matrix_transposed ;
+    r(t,:) = q(t,:) * tgt_matrix_transposed ;
     % q(4) should always be positive
     if r(t,4) < 0
       r(t,:) = -r(t,:);
     endif
     % compute angle disparity in radians
-    resolugram(t) = 2 * acos(r(t,4));
+    angDisp(t) = 2 * acos(r(t,4));
     % transform radians to degrees
-    resolugram(t) = resolugram(t) * 180 / pi;
+    angDisp(t) = angDisp(t) * 180 / pi;
   endfor
 endfunction
 
-% function to plot resolugram
-function plot_resolugram (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID)
-  frame_count = size(resolugram,1);
+% function to plot angular disparity
+function plot_angDisp (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID)
+  frame_count = size(angDisp,1);
   x = 0.1*(0:frame_count-1);
-  y = resolugram;
-  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  y = angDisp;
+  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   figure (1);
     plot (x , y);
-    title (plot_resolugram_title);
+    title (plot_angDisp_title);
     axis ([ 0 frame_count*0.1 0 180 ]);
     xlabel("Task duration"); ylabel("Distance in degrees");
 endfunction
 
-% function to plot resolugram with line colors (needs gaze_status values)
-function plot_resolugram_colored_line (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+% function to plot angular diaparity with line colors (needs gaze_status values)
+function plot_angDisp_colored_line (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
-  frame_count = size(resolugram,1);
-  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  frame_count = size(angDisp,1);
+  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
-  y = resolugram;
+  y = angDisp;
   color_0 = '#808080'; % gray
   color_1 = 'blue';
   color_2 = 'red';
@@ -275,23 +275,23 @@ function plot_resolugram_colored_line (resolugram, cfg_iRT_sessionID, cfg_iRT_ta
 
   hold off;
   % Descriptions
-  legend ('outside', 'Reference model', 'Interactive model');
-  title (plot_resolugram_title);
+  legend ('Outside', 'Target model', 'Interactive model');
+  title (plot_angDisp_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
   xlabel("Task duration"); ylabel("Distance in degrees");
   set(gca, 'ytick', 0:30:180);
 endfunction
 
 
-% function to plot resolugram with background colors (needs gaze_status values)
-function plot_resolugram_colored_bg (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+% function to plot angular disparity with background colors (needs gaze_status values)
+function plot_angDisp_colored_bg (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
   % computations
-  frame_count = size(resolugram,1);
-  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  frame_count = size(angDisp,1);
+  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
-  y = resolugram;
+  y = angDisp;
   color_0 = '#f0f0f0'; %outside
-  color_1 = '#9090ff'; %Reference
+  color_1 = '#9090ff'; %target
   color_2 = '#ff9090'; %Interactive
   bg_colors = {color_0, color_1, color_2};
   figure (8);
@@ -319,41 +319,41 @@ function plot_resolugram_colored_bg (resolugram, cfg_iRT_sessionID, cfg_iRT_task
   plot ( x, y, 'color', '#000000', 'linewidth', 1.0 );
   hold off;
   % Descriptions
-  legend ('outside', 'Reference model', 'Interactive model');
-  title (plot_resolugram_title);
+  legend ('Outside', 'Target model', 'Interactive model');
+  title (plot_angDisp_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
   xlabel("Task duration"); ylabel("Angular Disparity");
   set(gca, 'ytick', 0:30:180);
 endfunction
 
-% function to plot multiple resolugrams
-function plot_resolugram_multi (resolugram, plot_resolugram_title, fig_n, sub_p)
-  frame_count = size(resolugram,1);
+% function to plot multiple angular disparity graphs in grid
+function plot_angDisp_multi (angDisp, plot_angDisp_title, fig_n, sub_p)
+  frame_count = size(angDisp,1);
   x_duration = 0.1*(1:frame_count);
 
   % fig_n is a unique pointer to a plot. If two plots have the same pointer, one of them will be overwritten
   figure (fig_n);
     % subplot: rows, columns, index of selected plot
     subplot (sub_p(1),sub_p(2),sub_p(3));
-    ax = plot (x_duration , resolugram);
-    title(plot_resolugram_title);
+    ax = plot (x_duration , angDisp);
+    title(plot_angDisp_title);
     xlabel("Task duration");
     ylabel ("Angular Disparity");
     axis ([0,Inf, 0,180] );
     set(gca, 'ytick', 0:45:180);
 endfunction
 
-% function to plot multiple resolugrams with more data
-function plot_resolugram_multi_yy (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
-  frame_count = size(resolugram,1);
+% function to plot multiple angular disparity graphs with more data
+function plot_angDisp_multi_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
+  frame_count = size(angDisp,1);
   x_duration = 0.1*(1:frame_count);
-  plot_resolugram_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
 
   figure (fig_n);
     % subplot: rows, columns, index of selected plot
     subplot (sub_p(1),sub_p(2),sub_p(3));
-    ax = plotyy (x_duration , resolugram, x_duration, extra_series);
-    title(plot_resolugram_title);
+    ax = plotyy (x_duration , angDisp, x_duration, extra_series);
+    title(plot_angDisp_title);
     xlabel("Task duration");
     ylabel (ax(1), "Resolugram - Distance in degrees");
     ylabel (ax(2), 'Pupil Diameter');
@@ -488,11 +488,11 @@ function atomInt_xyzRot = rotate_atom_xyz (task_data, atom_matrix_quat_cols, ato
   endfor
 endfunction
 
-% rotate atom_xyz atom matrix based on the reference model quaternion from session_data
-function atomRef_xyzRot = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz)
-  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
+% rotate atom_xyz atom matrix based on the target model quaternion from session_data
+function atomTgt_xyzRot = rotate_tgt_atom_xyz (session_data, session_row, cfg_atom_matrix_tgt_cols, atom_xyz)
+  Q_tgt = cell2mat ( session_data(session_row,cfg_atom_matrix_tgt_cols) );
   for a = 1:size(atom_xyz,1);
-    atomRef_xyzRot(a,1:3) = ( rot_matrix (Q_ref(1), Q_ref(2), Q_ref(3), Q_ref(4)) * atom_xyz(a,1:3)' )' ;
+    atomTgt_xyzRot(a,1:3) = ( rot_matrix (Q_tgt(1), Q_tgt(2), Q_tgt(3), Q_tgt(4)) * atom_xyz(a,1:3)' )' ;
   endfor
 endfunction
 % calculate, in pixels, the canvas center from the browser window
@@ -501,7 +501,7 @@ function canvas_center = get_cvs_center (session_data, row_index, cvs_pos_cols)
   canvas_center = [ (canvas(2) + canvas(4) )/2 , (canvas(1) + canvas(3) )/2 ];
 endfunction
 % compute pixel distance between gaze matrix and each atom of selected atom matrix
-function [gaze_atomInt_dist, gaze_atomRef_dist] = get_gaze_atom_dist (gaze_px, atom_int_px, atom_ref_px)
+function [gaze_atomInt_dist, gaze_atomTgt_dist] = get_gaze_atom_dist (gaze_px, atom_int_px, atom_tgt_px)
 %    printf("Calculating gaze-atom distance array.."); tic();
     %initialize array
     atom_count = size(atom_int_px,1);
@@ -513,7 +513,7 @@ function [gaze_atomInt_dist, gaze_atomRef_dist] = get_gaze_atom_dist (gaze_px, a
         %Formula: gaze_atom_dist = sqrt( (x-x')^2 + (y-y')^2 )
 %        gaze_atom_dist(t,a) = sqrt ( (atom_px(a,1,t)-gaze_px(t,1))^2 + (atom_px(a,2,t)-gaze_px(t,2))^2 );
         gaze_atomInt_dist(t,a) = sqrt ( (atom_int_px(a,1,t)-gaze_px(t,1))^2 + (atom_int_px(a,2,t)-gaze_px(t,2))^2 );
-        gaze_atomRef_dist(t,a) = sqrt ( (atom_ref_px(a,1)-gaze_px(t,1))^2 + (atom_ref_px(a,2)-gaze_px(t,2))^2 );
+        gaze_atomTgt_dist(t,a) = sqrt ( (atom_tgt_px(a,1)-gaze_px(t,1))^2 + (atom_tgt_px(a,2)-gaze_px(t,2))^2 );
       endfor
     endfor
 %    printf(".array calculated.");
@@ -529,22 +529,22 @@ function [gaze_nearest_atom_distance,gaze_nearest_atom_index] = fill_nearest_ato
 endfunction
 
 % returns gaze_status (if gaze is inside canvas 1 or 2) from gaze pixel position and canvas extremities position in px [top right bottom left]
-function gaze_status = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt)
+function gaze_status = fill_gaze_status (gaze_px, canvas_tgt, cfg_gaze_status_codeTgt, canvas_int, cfg_gaze_status_codeInt)
   frame_count = size(gaze_px, 1);
   %0,0 is top-left corner
-  cvsTop_r = canvas_ref(1);
-  cvsRight_r = canvas_ref(2);
-  cvsBottom_r = canvas_ref(3);
-  cvsLeft_r = canvas_ref(4);
+  cvsTop_r = canvas_tgt(1);
+  cvsRight_r = canvas_tgt(2);
+  cvsBottom_r = canvas_tgt(3);
+  cvsLeft_r = canvas_tgt(4);
   cvsTop_i = canvas_int(1);
   cvsRight_i = canvas_int(2);
   cvsBottom_i = canvas_int(3);
   cvsLeft_i = canvas_int(4);
   %fill gaze_status if gaze is within canvas bounduaries
   for t=1 : frame_count
-    % if gaze is inside reference canvas..
+    % if gaze is inside target canvas..
     if ( (cvsLeft_r < gaze_px(t,1)) && (gaze_px(t,1) < cvsRight_r) && (cvsTop_r < gaze_px(t,2)) && (gaze_px(t,2) < cvsBottom_r) )
-      gaze_status(t,1) = cfg_gaze_status_codeRef;
+      gaze_status(t,1) = cfg_gaze_status_codeTgt;
     %if gaze is inside interactive canvas..
     elseif ( (cvsLeft_i < gaze_px(t,1)) && (gaze_px(t,1) < cvsRight_i) && (cvsTop_i < gaze_px(t,2)) && (gaze_px(t,2) < cvsBottom_i) )
       gaze_status(t,1) = cfg_gaze_status_codeInt;
@@ -576,7 +576,7 @@ function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, tra
   endif
 endfunction
 
-% returns jmol commands cell matrix for atoms transparency animation from heatmap_mw_int (or _ref). Needs to horzcat() to replay_int_jmol_script
+% returns jmol commands cell matrix for atoms transparency animation from heatmap_mw_int (or _tgt). Needs to horzcat() to replay_int_jmol_script
 function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_mw)
   % building heatmap scale for animation
   for t=1:frame_count
@@ -609,13 +609,13 @@ function replay_transp_jmol_script = replay_transparency (frame_count, atom_coun
 endfunction
 
 % write file with jmol commands to animate the replay with gaze heatmap in 3D
-function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_ref)
+function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_tgt)
   tic(); printf(["Writing jmol commands in file '",filename,"' for gaze heatmap animation replay .."]);
   %open file pointer
   xls_heatmapMw = xlsopen (filename, true);
 
   [xls_heatmapMw] = oct2xls (data_matrix_int, xls_heatmapMw, "jmol gaze int");
-  [xls_heatmapMw] = oct2xls (data_matrix_ref, xls_heatmapMw, "jmol gaze ref");
+  [xls_heatmapMw] = oct2xls (data_matrix_tgt, xls_heatmapMw, "jmol gaze tgt");
 
   %close file pointer
   [xls_heatmapMw] = xlsclose (xls_heatmapMw);
@@ -648,7 +648,7 @@ if cfg_interpolate_missingVal == true
   endif
   eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
 endif
-% iRT_data and session_data input (calculates session_row, Q_ref, Q and frame_count with either true or false)
+% iRT_data and session_data input (calculates session_row, Q_tgt, Q and frame_count with either true or false)
 if cfg_iRT_input == true
   [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
 else
@@ -662,18 +662,18 @@ if cfg_iRT_process == true
   % slice out desired iRT_data from raw_iRT_data (set desired columns in cfg_iRT_cols setting)
   [iRT_data, iRT_header_data] = slice_task_data (raw_iRT_data, cfg_iRT_sessionID, cfg_iRT_taskID, cfg_iRT_cols);
 
-  % obtain quaternion coordinates array (1 x 4) of reference model
-  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
+  % obtain quaternion coordinates array (1 x 4) of target model
+  Q_tgt = cell2mat ( session_data(session_row,cfg_atom_matrix_tgt_cols) );
   % obtain quaternion coordinates matrix (t x 4) of interactive model
   Q(:,1:4) = iRT_data(:,cfg_atom_matrix_quat_cols);
   % obtain amount of rows/frames/data points from the duration of the executed task
   frame_count = size (Q,1);
 
-  % compute resolugram data
-  resolugram = compute_resolugram (Q, Q_ref);
-  iRT_data = horzcat ( iRT_data, resolugram );
-  if cfg_plot_resolugram == true
-    plot_resolugram (Q, resolugram, cfg_iRT_sessionID, cfg_iRT_taskID);
+  % compute angular disparity data
+  angDisp = compute_angDisp (Q, Q_tgt);
+  iRT_data = horzcat ( iRT_data, angDisp );
+  if cfg_plot_angDisp == true
+    plot_angDisp (Q, angDisp, cfg_iRT_sessionID, cfg_iRT_taskID);
   endif
 endif
 
@@ -682,7 +682,7 @@ if cfg_data_merge == true
   % merge eyeT data into iRT data
   task_data = merge_data(iRT_data, eyeT_data, cfg_eyeT_cols);
   % merge headers
-  merged_header_data = horzcat(iRT_header_data, "resolugram dist", raw_eyeT_header_data(cfg_eyeT_cols));
+  merged_header_data = horzcat(iRT_header_data, "angDisp", raw_eyeT_header_data(cfg_eyeT_cols));
 
   % WRITE output file
   if cfg_write_merge_output == true
@@ -739,21 +739,21 @@ if cfg_xyz_input == true
 endif
 
 
-% compute atom matrices (temporal and reference) from xyz coordinates rotated acording to rotation data in chosen session
+% compute atom matrices (temporal and target) from xyz coordinates rotated acording to rotation data in chosen session
 if cfg_atom_matrix == true
   % create temporal atom matrix of the interactive model
   atomInt_xyzRot = rotate_atom_xyz (task_data, cfg_atom_matrix_quat_cols, atom_xyz);
-  % create atom matrix of the reference model
-  atomRef_xyzRot = rotate_ref_atom_xyz (session_data, session_row, cfg_atom_matrix_ref_cols, atom_xyz);
+  % create atom matrix of the target model
+  atomTgt_xyzRot = rotate_tgt_atom_xyz (session_data, session_row, cfg_atom_matrix_tgt_cols, atom_xyz);
 
-  % compute xy pixel coordinate of canvas center (both reference and interactive)
+  % compute xy pixel coordinate of canvas center (both target and interactive)
   cvsInt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsInt_cols);
-  cvsRef_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsRef_cols);
+  cvsTgt_center = get_cvs_center (session_data, session_row, cfg_gaze_cvsTgt_cols);
   % get pixel to angstrom ratio of chosen row in session_data
   pxAngs_rate = session_data{session_row, cfg_gaze_pxAngs_rate_col};
-  % get px coordinates of atoms xy projection (temporal/interactive and static/reference). (0,0) is top-left corner of screen
+  % get px coordinates of atoms xy projection (temporal/interactive and static/target). (0,0) is top-left corner of screen
   atom_int_px = (atomInt_xyzRot(:,1:2,:) * pxAngs_rate) + cvsInt_center;
-  atom_ref_px = (atomRef_xyzRot(:,1:2) * pxAngs_rate) + cvsRef_center;
+  atom_tgt_px = (atomTgt_xyzRot(:,1:2) * pxAngs_rate) + cvsTgt_center;
   %plot interactive model atoms/vertices in 2D at given time set as cfg_atom_matrix_plot_t
   if and ( cfg_atom_matrix_plot == true, cfg_atom_matrix_plot_t > size(atomInt_xyzRot,3) )
     warning("The chosen frame index %i is outside the matrix range. Choose a reasonable frame index");
@@ -765,12 +765,12 @@ if cfg_atom_matrix == true
     axis ("equal");
     xlabel("x"); ylabel("y");
   endif
-  %plot reference model atoms/vertices in 2D
-  if cfg_atom_matrix_ref_plot == true
+  %plot target model atoms/vertices in 2D
+  if cfg_atom_matrix_tgt_plot == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (4);
-    scatter (atomRef_xyzRot(:,1), atomRef_xyzRot(:,2), atom_cor(:,1), atom_cor(:,2:4));
-    title ("2D Scatter of vertices in reference model");
+    scatter (atomTgt_xyzRot(:,1), atomTgt_xyzRot(:,2), atom_cor(:,1), atom_cor(:,2:4));
+    title ("2D Scatter of vertices in target model");
     axis ("equal");
     xlabel("x"); ylabel("y");
   endif
@@ -779,35 +779,35 @@ endif
 % compute matrices of screen position distances between gazepoint and each atom
 if cfg_gaze_dist_matrix == true
   gaze_px = task_data (:,cfg_gaze_cols);
-  [gaze_atomInt_dist, gaze_atomRef_dist] = get_gaze_atom_dist (gaze_px, atom_int_px, atom_ref_px);
+  [gaze_atomInt_dist, gaze_atomTgt_dist] = get_gaze_atom_dist (gaze_px, atom_int_px, atom_tgt_px);
 endif
-% compute gaze_status in relation to canva :  1= ref; 2= int; 0= outside
+% compute gaze_status in relation to canva :  1= tgt; 2= int; 0= outside
 if cfg_gaze_status_array == true
   canvas_int = cell2mat (session_data (session_row,cfg_gaze_cvsInt_cols) ); % top, right, bottom, left side positions.
-  canvas_ref = cell2mat (session_data (session_row,cfg_gaze_cvsRef_cols) ); % top, right, bottom, left side positions.
+  canvas_tgt = cell2mat (session_data (session_row,cfg_gaze_cvsTgt_cols) ); % top, right, bottom, left side positions.
   gaze_status = zeros ( size(gaze_px,1), 1); % n x 1
-  gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_ref, cfg_gaze_status_codeRef, canvas_int, cfg_gaze_status_codeInt);
+  gaze_status(:,1) = fill_gaze_status (gaze_px, canvas_tgt, cfg_gaze_status_codeTgt, canvas_int, cfg_gaze_status_codeInt);
 endif
-% plot resolugram colored with gaze_status
-if cfg_plot_resolugram_gaze_status == true
-  plot_resolugram_colored_bg (resolugram, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status);
+% plot angular disparity colored with gaze_status
+if cfg_plot_angDisp_gaze_status == true
+  plot_angDisp_colored_bg (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status);
 endif
 
 % Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
 if cfg_gaze_heatmap_window == true
   printf("Calculating transparency gradient for replay animation (may take a while):\n");tic();
   %declaring variables
-  heatmap_mw_int = heatmap_mw_ref = zeros (atom_count,1); #(a,1)
-  distMw_ref = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
-%  distMw_ref_exp = distMw_int_exp = zeros (frame_count, atom_count); #(t,a)
-  exp_distMw_ref = exp_distMw_int = zeros (frame_count, atom_count); #(t,a)
+  heatmap_mw_int = heatmap_mw_tgt = zeros (atom_count,1); #(a,1)
+  distMw_tgt = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
+%  distMw_tgt_exp = distMw_int_exp = zeros (frame_count, atom_count); #(t,a)
+  exp_distMw_tgt = exp_distMw_int = zeros (frame_count, atom_count); #(t,a)
   %gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
 
   for a=1 : atom_count
     for t=1 : frame_count
-%      distMw_ref(t,1:2,a) = [ ( atom_ref_px(a,1)   - gaze_px(t,1) ).^2 , ( atom_ref_px(a,2)   - gaze_px(t,2) ).^2 ];
+%      distMw_tgt(t,1:2,a) = [ ( atom_tgt_px(a,1)   - gaze_px(t,1) ).^2 , ( atom_tgt_px(a,2)   - gaze_px(t,2) ).^2 ];
 %      distMw_int(t,1:2,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 , ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
-      distMw_ref(t,a) = [ ( atom_ref_px(a,1)   - gaze_px(t,1) ).^2 + ( atom_ref_px(a,2)   - gaze_px(t,2) ).^2 ];
+      distMw_tgt(t,a) = [ ( atom_tgt_px(a,1)   - gaze_px(t,1) ).^2 + ( atom_tgt_px(a,2)   - gaze_px(t,2) ).^2 ];
       distMw_int(t,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 + ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
     endfor
   endfor
@@ -819,7 +819,7 @@ if cfg_gaze_heatmap_window == true
   c=1;
   for a=1 : atom_count
     % fill gaussian integral values
-    exp_distMw_ref(:,a) = exp ( - distMw_ref(:,a) / (2*cfg_gaussian_wdt^2) ) ;
+    exp_distMw_tgt(:,a) = exp ( - distMw_tgt(:,a) / (2*cfg_gaussian_wdt^2) ) ;
     exp_distMw_int(:,a) = exp ( - distMw_int(:,a) / (2*cfg_gaussian_wdt^2) ) ;
   endfor
 
@@ -827,17 +827,17 @@ if cfg_gaze_heatmap_window == true
   for t=1 : frame_count %building transparency gradient table with moving window
     %cfg_heatmap_mw_frame_length is the range in frames (0.1 second in 10Hz) for computing the relevance of each atom (spans from 's' to 't')
     s = max([t-cfg_heatmap_mw_frame_length, 1]);
-    heatmap_mw_ref(t,1:atom_count) = sum (exp_distMw_ref(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeRef) );
+    heatmap_mw_tgt(t,1:atom_count) = sum (exp_distMw_tgt(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeTgt) );
     heatmap_mw_int(t,1:atom_count) = sum (exp_distMw_int(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeInt) );
   endfor
 
 
-  replay_ref_jmol_script = repmat({"delay 0.1;"}, frame_count, 1);
-  Q_ref = cell2mat ( session_data(session_row,cfg_atom_matrix_ref_cols) );
-  replay_ref_jmol_script{1} = ["moveto 0 QUATERNION {", num2str(Q_ref(1:4)),"};"];
-  replay_transp_jmol_script_ref = horzcat( replay_ref_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_ref) );
+  replay_tgt_jmol_script = repmat({"delay 0.1;"}, frame_count, 1);
+  Q_tgt = cell2mat ( session_data(session_row,cfg_atom_matrix_tgt_cols) );
+  replay_tgt_jmol_script{1} = ["moveto 0 QUATERNION {", num2str(Q_tgt(1:4)),"};"];
+  replay_transp_jmol_script_tgt = horzcat( replay_tgt_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_tgt) );
   replay_transp_jmol_script_int = horzcat( replay_int_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
 
-  writeOutput_heatmapMw (cfg_replay_animation_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_ref);
+  writeOutput_heatmapMw (cfg_replay_animation_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_tgt);
 endif
 
