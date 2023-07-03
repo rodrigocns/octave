@@ -565,7 +565,7 @@ function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, tra
         current_jmol_script = strcat(current_jmol_script, ";");
       endif
     endfor
-    current_jmol_script = strcat(current_jmol_script, [" color atoms TRANSLUCENT ", num2str(transl_num),";"] );
+    current_jmol_script = strcat(current_jmol_script, [" color atoms TRANSLUCENT ", num2str(transl_num, '%.3f'),";"] );
   # Else, leave it with empty space
   else
     current_jmol_script = "";
