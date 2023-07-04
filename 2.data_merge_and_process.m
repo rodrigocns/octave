@@ -60,7 +60,7 @@ cfg_write_merge_output = true; % WRITE output file from task_data
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
-cfg_plot_xyz = true; % DRAW scatter3 of the array of atoms colored acording to atom_elem (figure#2)
+cfg_plot_xyz = true; % DRAW 3D vertices of the array of atoms colored acording to atom_elem (figure#2)
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
@@ -78,7 +78,7 @@ cfg_gaze_cvsTgt_cols = [14,15,16,17]; % column indexes of target model canvas po
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
-% calculate the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or outside both
+% calculate the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or neither
 cfg_gaze_status_array = true;
 cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target model canvas
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
@@ -88,7 +88,6 @@ cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line c
 cfg_gaze_heatmap_window = true;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
-
 
 %{
    #=========================================#
@@ -376,7 +375,7 @@ endfunction
 
 % write output file from merged data
 function writeOutput_merged (filename, header, task_data, session_data, session_row)
-  printf("Writing output file.."); tic();
+  printf("Writing output file with merged data points.."); tic();
   % open file pointer
   xls_merged = xlsopen (filename, true);
 
@@ -673,7 +672,7 @@ if cfg_iRT_process == true
   angDisp = compute_angDisp (Q, Q_tgt);
   iRT_data = horzcat ( iRT_data, angDisp );
   if cfg_plot_angDisp == true
-    plot_angDisp (Q, angDisp, cfg_iRT_sessionID, cfg_iRT_taskID);
+    plot_angDisp (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID);
   endif
 endif
 
