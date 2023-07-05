@@ -60,7 +60,7 @@ cfg_write_merge_output = true; % WRITE output file from task_data
 % read .xyz file with atom data from the used model based on values in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
-cfg_plot_xyz = true; % DRAW 3D vertices of the array of atoms colored acording to atom_elem (figure#2)
+cfg_plot_xyz = false; % DRAW 3D vertices of the array of atoms colored acording to atom_elem (figure#2). Similar to what Jmol does, for debugging purposes.
 
 % calculate temporal array of rotated atoms
 cfg_atom_matrix = true;
@@ -685,7 +685,7 @@ if cfg_data_merge == true
 
   % WRITE output file
   if cfg_write_merge_output == true
-    writeOutput_merged (strcat("outputMerge", ".xlsx"), merged_header_data, task_data, session_data, session_row);
+    writeOutput_merged (["outputMerge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"], merged_header_data, task_data, session_data, session_row);
   endif
 
 endif
