@@ -633,21 +633,8 @@ if and ( exist('raw_eyeT_data', 'var') == 0 , cfg_eyeT_input == false)
   warning("The eyeTracking data source is missing! Changed cfg_eyeT_input to true for this execution.\n");
   cfg_eyeT_input = true;
 endif
-% eyetracking data input (eyeT2oct)
-if cfg_eyeT_input == true
-  [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (cfg_eyeT_input_filename);
-else
-  disp("Skipping eyeT file read.");
-endif
-% eyeTracking data pre-process: interpolation of missing data
-if cfg_interpolate_missingVal == true
-  % error flag
-  if any ( size ( raw_eyeT_data, 2 ) < cfg_interpolate_cols )
-    error("Warning: The column selected is above the data size.");
-  endif
-  eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
-endif
-% iRT_data and session_data input (calculates session_row, Q_tgt, Q and frame_count with either true or false)
+
+% iRT_data and session_data input (always computes session_row, Q_tgt, Q and frame_count)
 if cfg_iRT_input == true
   [session_data,raw_iRT_data] = iRT2oct (cfg_iRT_input_filename);
 else
@@ -674,6 +661,21 @@ if cfg_iRT_process == true
   if cfg_plot_angDisp == true
     plot_angDisp (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID);
   endif
+endif
+
+% eyetracking data input (eyeT2oct)
+if cfg_eyeT_input == true
+  [raw_eyeT_data, raw_eyeT_header_data] = eyeT2oct (cfg_eyeT_input_filename);
+else
+  disp("Skipping eyeT file read.");
+endif
+% eyeTracking data pre-process: interpolation of missing data
+if cfg_interpolate_missingVal == true
+  % error flag
+  if any ( size ( raw_eyeT_data, 2 ) < cfg_interpolate_cols )
+    error("Warning: The column selected is above the data size.");
+  endif
+  eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
 endif
 
 % iRT - eyeTracking data merge. Headers included
