@@ -18,7 +18,6 @@ clear -exclusive *_data *_safe;
 % set 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % obtain needed values from iRT data. Mandatory
-cfg_iRT_process = true; %SHOULD ALWAYS BE 'TRUE'
 cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
 %sample sessionIDs:    1682699553789    1682707472090    (sbj me)
@@ -33,9 +32,12 @@ plot_angDisp_multi (angDisp5_safe, "S1, task: mrt", 15, [3,2,5])
 plot_angDisp_multi (angDisp6_safe, "S2, task: mrt", 15, [3,2,6])
 %}
 
+% 1.Temporal Data Input
 % read iRT .xlsx input file
 cfg_iRT_input = true; %slow process. Set true to read a new file
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+cfg_iRT_filter = true; %SHOULD ALWAYS BE 'true'
+cfg_plot_angDisp = true; % DRAW angular disparity plot (angular distance between target and interactive models, in degrees) (figure#1)
 
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = true; %slow process. Set true to read a new file
@@ -43,26 +45,27 @@ cfg_eyeT_input_filename = "raw_eyeT_1682707472090.xlsx"; %name of the input file
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data array)
 cfg_interpolate_missingVal = true;
-cfg_interpolate_cols = [8,9]; % eyeT_data columns that need the interpolation. Pulil diameter, left/right, etc.
-cfg_interpolate_vals = [0,-1]; % possible results of missing data to be identified and corrected
+cfg_interpolate_cols = [8,9]; % eyeT_data columns that need the interpolation, such as Pulil diameter, etc.
+cfg_interpolate_vals = [0,-1]; % possible values of missing data to be identified and corrected (if values match any of these, they will be corrected)
 
-% compute and write file with table of jmol commands for the replay animation
-cfg_replay_animation = true;
-cfg_replay_animation_filename = ["output_copy_to_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
-cfg_plot_angDisp = true; % DRAW angular disparity plot (distance between target and interactive models, in degrees) (figure#1)
-
+% 2.Data Synchronization
 % merge eyeTracker data to the chosen iRT task (make sure the files are from the same session!)
 cfg_data_merge = true;
 cfg_iRT_cols = [3:8]; %range of desired data columns from raw_iRT_data. 5:8 is quaternion data, 3 is unix epoch
 cfg_eyeT_cols = [1,2,4,6:9]; %range of desired data columns from eyeT_data. epoch data should be the 1st column
 cfg_write_merge_output = true; % WRITE output file from task_data
 
-% read .xyz file with atom data from the used model based on values in session_data
+% 3.Data Processing
+% compute and write file with table of jmol commands for the replay animation
+cfg_replay_animation = true;
+cfg_replay_animation_filename = ["output_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
+
+% read .xyz file with atom data from the specified model in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
 cfg_plot_xyz = false; % DRAW 3D vertices of the array of atoms colored acording to atom_elem (figure#2). Similar to what Jmol does, for debugging purposes.
 
-% calculate temporal array of rotated atoms
+% compute temporal array of rotated atoms
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % column indexes of quaternions inside task_data array. Jmol quaternions order: [i j k r]
 cfg_atom_matrix_tgt_cols = [7:10]; % column indexes for the target quaternion values inside session_data ("tgt_i","tgt_j","tgt_k","tgt_theta")
@@ -70,7 +73,7 @@ cfg_atom_matrix_tgt_plot = false; %2d scatter of the target model (figure#3)
 cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time (figure#4)
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#4)
 
-% calculate gaze-canvas distances
+% compute gaze-canvas distances
 cfg_gaze_dist_matrix = true;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
@@ -78,13 +81,13 @@ cfg_gaze_cvsTgt_cols = [14,15,16,17]; % column indexes of target model canvas po
 cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
-% calculate the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or neither
+% compute the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or neither
 cfg_gaze_status_array = true;
 cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target model canvas
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
 cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line color based in the registered gaze_status
 
-% calculate temporal transparency heatmap in 3D
+% compute temporal transparency heatmap in 3D
 cfg_gaze_heatmap_window = true;
 cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
 cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
@@ -624,6 +627,9 @@ endfunction
 %==========================
 
 %SCRIPTS
+%--------------
+% 1.Temporal Data Input
+printf("\n STEP 1: Temporal Data Input\n");
 % data checks for the slowest functions!
 if and ( exist('raw_iRT_data', 'var') == 0 , cfg_iRT_input == false)
   warning("The iRT data source is missing! Changed cfg_iRT_input to true for this execution.\n");
@@ -641,8 +647,8 @@ else
   disp("Skipping iRT file read.");
 endif
 
-% obtain needed values from specified sessionID (cfg_iRT_sessionID) and taskID (cfg_iRT_taskID) inside session_data
-if cfg_iRT_process == true
+% filter values from specified sessionID (cfg_iRT_sessionID) and taskID (cfg_iRT_taskID) inside session_data
+if cfg_iRT_filter == true
   % obtain row index of chosen task/session inside session_data table
   session_row = get_session_row (session_data, cfg_iRT_sessionID, cfg_iRT_taskID);
   % slice out desired iRT_data from raw_iRT_data (set desired columns in cfg_iRT_cols setting)
@@ -677,8 +683,10 @@ if cfg_interpolate_missingVal == true
   endif
   eyeT_data = interpolate_missing_data (raw_eyeT_data, cfg_interpolate_cols, cfg_interpolate_vals);
 endif
-
-% iRT - eyeTracking data merge. Headers included
+% ----------------------
+% 2.Data Synchronization
+printf("\n STEP 2: Data Synchronization\n");
+% synchronization/merge of iRT and eyeTracking data. Headers included. 1st column values of matrices is used for synchronization
 if cfg_data_merge == true
   % merge eyeT data into iRT data
   task_data = merge_data(iRT_data, eyeT_data, cfg_eyeT_cols);
@@ -687,12 +695,13 @@ if cfg_data_merge == true
 
   % WRITE output file
   if cfg_write_merge_output == true
-    writeOutput_merged (["outputMerge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"], merged_header_data, task_data, session_data, session_row);
+    writeOutput_merged (["output_merge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"], merged_header_data, task_data, session_data, session_row);
   endif
-
 endif
-
-% building interaction replay animation from temporal quaternion (t x 4 array)
+%------------------
+% 3.Data Processing
+printf("\n STEP 3: Data Processing\n");
+% Build interaction replay animation from temporal quaternion (t x 4 array)
 if cfg_replay_animation == true
   %declare cell matrix
   replay_int_jmol_script = cell(frame_count,1);
@@ -708,14 +717,14 @@ if cfg_replay_animation == true
       replay_int_jmol_script{t} = strcat("moveto 0.1 QUATERNION {", num2str(Q(t,1:4)) , "};");
     endif
   endfor
-  tic(); printf("Writing file with jmol commands for rotation animation replay ..");
+  tic(); printf("Writing file with jmol commands for replay animation of rotations..");
   %open file pointer
-  xls_replay = xlsopen (cfg_replay_animation_filename, true);
+  xls_replay_pointer = xlsopen (cfg_replay_animation_filename, true);
 
-  [xls_replay] = oct2xls (replay_int_jmol_script, xls_replay, "rotaion");
+  [xls_replay_pointer] = oct2xls (replay_int_jmol_script, xls_replay_pointer, 'rotaion replay');
 
   %close file pointer
-  [xls_replay] = xlsclose (xls_replay);
+  [xls_replay_pointer] = xlsclose (xls_replay_pointer);
   printf(".OK!"); toc();
 endif
 
@@ -738,7 +747,6 @@ if cfg_xyz_input == true
     xlabel("x"); ylabel("y"); zlabel("z");
   endif
 endif
-
 
 % compute atom matrices (temporal and target) from xyz coordinates rotated acording to rotation data in chosen session
 if cfg_atom_matrix == true
