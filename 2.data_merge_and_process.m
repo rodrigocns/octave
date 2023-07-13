@@ -89,8 +89,8 @@ cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line c
 
 % compute temporal transparency heatmap in 3D
 cfg_gaze_map = true;
-cfg_gaussian_wdt = 50; % gaussian width in screen pixels, used in heatmap calculation
-cfg_gauss_time_sigma = 40; % gaussian width for decay over time, in frames count (0.1s per frame, ).
+cfg_gauss_wdt_screen = 50; % gaussian width (sigma) in screen pixels, used in heatmap calculation
+cfg_gauss_wdt_time = 40; % gaussian width (sigma) for decay over time, in frames count (0.1s per frame, ).
 
 %{
    #=========================================#
@@ -812,7 +812,7 @@ if cfg_gaze_map == true
   gaze_dist_tgt = gaze_dist_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
   exp_gaze_dist_tgt = exp_gaze_dist_int = zeros (frame_count, atom_count); #(t,a)
 %  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
-  %Gaussian formula remainder: integral of ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
+  %Gaussian formula remainder: integral of ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gauss_wdt_screen^2)) dt)
 
   % Compute matrix of euclidian distance (gaze_dist_tgt and gaze_dist_int) between gaze and atom, for all atoms in all time frames.
   for a=1 : atom_count
@@ -824,14 +824,14 @@ if cfg_gaze_map == true
 
   for a=1 : atom_count
     % fill bi-gaussian values for each atom (gaze distance gaussian)
-    exp_gaze_dist_tgt(:,a) = exp ( - gaze_dist_tgt(:,a) / (2*cfg_gaussian_wdt^2) ) ;
-    exp_gaze_dist_int(:,a) = exp ( - gaze_dist_int(:,a) / (2*cfg_gaussian_wdt^2) ) ;
+    exp_gaze_dist_tgt(:,a) = exp ( - gaze_dist_tgt(:,a) / (2*cfg_gauss_wdt_screen^2) ) ;
+    exp_gaze_dist_int(:,a) = exp ( - gaze_dist_int(:,a) / (2*cfg_gauss_wdt_screen^2) ) ;
   endfor
 
   #defining visual short-term memory gaussian
   clear vstm_gaussian;
-  for t=1 : 4*cfg_gauss_time_sigma
-    vstm_gaussian(t) = exp ( - ( (4*cfg_gauss_time_sigma-t)^2 / (2*(cfg_gauss_time_sigma^2)) ) );
+  for t=1 : 4*cfg_gauss_wdt_time
+    vstm_gaussian(t) = exp ( - ( (4*cfg_gauss_wdt_time-t)^2 / (2*(cfg_gauss_wdt_time^2)) ) );
   endfor
 %  plot(vstm_gaussian) % debug
   vstm_len = length(vstm_gaussian);
@@ -840,7 +840,7 @@ if cfg_gaze_map == true
   for t=1 : frame_count
     gazemap_sum_tgt = 0;
     gazemap_sum_int = 0;
-    ti = 1 + max([t-4*cfg_gauss_time_sigma, 0]);
+    ti = 1 + max([t-4*cfg_gauss_wdt_time, 0]);
     for frame=ti : t
       gazemap_sum_tgt += ( exp_gaze_dist_tgt(frame,1:atom_count) .* vstm_gaussian(vstm_len-(t-frame)) );
       gazemap_sum_int += ( exp_gaze_dist_int(frame,1:atom_count) .* vstm_gaussian(vstm_len-(t-frame)) );
