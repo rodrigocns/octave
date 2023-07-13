@@ -287,45 +287,54 @@ endfunction
 
 % function to plot angular disparity with background colors (needs gaze_status values)
 function plot_angDisp_colored_bg (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status)
+  figure;
+
   % computations
   frame_count = size(angDisp,1);
-  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
+  plot_angDisp_title = ["Angular disparity - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID];
   x = 0.1*(0:frame_count-1);
   y = angDisp;
+  % defining colors
   color_0 = '#f0f0f0'; %outside
   color_1 = '#9090ff'; %target
   color_2 = '#ff9090'; %Interactive
+  color_line = '#000000'; % Angular Disparity line
   bg_colors = {color_0, color_1, color_2};
-  figure (8);
-  hold on;
-  % samples for the graph legend
-  plot (x(1),y(1),'color', bg_colors{1}, 'linewidth', 5.0 );
-  plot (x(1),y(1),'color', bg_colors{2}, 'linewidth', 5.0 );
-  plot (x(1),y(1),'color', bg_colors{3}, 'linewidth', 5.0 );
+  legend_labels = {'Outside', 'Target model', 'Interactive model', 'Angular disparity'};
 
-  % plot gray line with colored background
+  % samples for the graph legend
+  hold on;
+  plot (NaN,NaN,'color', bg_colors{1}, 'linewidth', 5.0, 'DisplayName', legend_labels{1} ); %dummy areas
+  plot (NaN,NaN,'color', bg_colors{2}, 'linewidth', 5.0, 'DisplayName', legend_labels{2} );
+  plot (NaN,NaN,'color', bg_colors{3}, 'linewidth', 5.0, 'DisplayName', legend_labels{3} );
+  plot (NaN,NaN, 'color', color_line, 'linewidth', 1.0 ); % dummy line
+
+  % plot colored background
   current_status = gaze_status(1);
   ln_len = 0; % length of the line segment
   x_left = 0; % left corner of each rectangle
   for i=2:frame_count
     ln_len = ln_len+1;
     if i == frame_count || gaze_status(i) != current_status
-      %plot colored line segment
+      %plot colored bg rectangle
       rectangle ( 'Position', [ (i-1-ln_len)/10 , 0, ln_len/10, 180], 'FaceColor', bg_colors{current_status+1}, 'EdgeColor', 'none');
-      %prepare for next line segment
+      %prepare for next bg rectangle
       current_status = gaze_status(i);
       ln_len = 0;
     endif
   endfor
+
   % plot the angular distance line
-  plot ( x, y, 'color', '#000000', 'linewidth', 1.0 );
+  plot ( x, y, 'color', color_line, 'linewidth', 1.0 );
+
   hold off;
   % Descriptions
-  legend ('Outside', 'Target model', 'Interactive model');
+  legend ('Outside', 'Target model', 'Interactive model', 'Angular disparity');
   title (plot_angDisp_title);
   axis ([ 0 frame_count*0.1 0 180 ]);
   xlabel("Task duration"); ylabel("Angular Disparity");
   set(gca, 'ytick', 0:30:180);
+
 endfunction
 
 % function to plot multiple angular disparity graphs in grid
