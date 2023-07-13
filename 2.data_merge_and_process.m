@@ -88,9 +88,9 @@ cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was wi
 cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line color based in the registered gaze_status
 
 % compute temporal transparency heatmap in 3D
-cfg_gaze_heatmap_window = true;
-cfg_heatmap_mw_frame_length = 20; %moving window length in frames for heatmap computation
-cfg_gaussian_wdt = 50; %gaussian width in screen pixels, used in heatmap calculation
+cfg_gaze_map = true;
+cfg_gaussian_wdt = 50; % gaussian width in screen pixels, used in heatmap calculation
+cfg_gauss_time_sigma = 40; % gaussian width for decay over time, in frames count (0.1s per frame, ).
 
 %{
    #=========================================#
@@ -578,17 +578,17 @@ function current_jmol_script = jmol_scripting_selectAtom ( atom_index_array, tra
   endif
 endfunction
 
-% returns jmol commands cell matrix for atoms transparency animation from heatmap_mw_int (or _tgt). Needs to horzcat() to replay_int_jmol_script
-function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_mw)
+% returns jmol commands cell matrix for atoms transparency animation from gazemap_matrix_int (or _tgt). Needs to horzcat() to replay_int_jmol_script
+function replay_transp_jmol_script = replay_transparency (frame_count, atom_count, heatmap_matrix)
   % building heatmap scale for animation
   for t=1:frame_count
-    heatmap_mw_max(t) = max(heatmap_mw(t,:));
-    heatmap_mw_min(t) = min(heatmap_mw(t,:));
+    heatmap_mw_max(t) = max(heatmap_matrix(t,:));
+    heatmap_mw_min(t) = min(heatmap_matrix(t,:));
     heatmap_mw_range(t) = heatmap_mw_max(t) - heatmap_mw_min(t);
     % compute scale from 1 (max) to nearly 0 for all atoms in each time frame
     for a=1:atom_count
       % 0.05 is minimal value to avoid division by 0
-      heatscale_mw(t,a) = heatmap_mw(t,a) / max ( heatmap_mw_max(t), 0.05 );
+      heatscale_mw(t,a) = heatmap_matrix(t,a) / max ( heatmap_mw_max(t), 0.05 );
     endfor
   endfor
   % build atom x frame matrix for "painting atoms with transparency" (scale 'e' of eights in jmol)
@@ -611,17 +611,19 @@ function replay_transp_jmol_script = replay_transparency (frame_count, atom_coun
 endfunction
 
 % write file with jmol commands to animate the replay with gaze heatmap in 3D
-function writeOutput_heatmapMw (filename, data_matrix_int, data_matrix_tgt)
+function writeOutput_gazemap (filename, script_matrix_tgt, script_matrix_int, script_line_tgt, script_line_int)
   tic(); printf(["Writing jmol commands in file '",filename,"' for gaze heatmap animation replay .."]);
   %open file pointer
-  xls_heatmapMw = xlsopen (filename, true);
+  xls_gazemap_pointer = xlsopen (filename, true);
 
-  [xls_heatmapMw] = oct2xls (data_matrix_int, xls_heatmapMw, "jmol gaze int");
-  [xls_heatmapMw] = oct2xls (data_matrix_tgt, xls_heatmapMw, "jmol gaze tgt");
+  [xls_gazemap_pointer] = oct2xls (script_matrix_int, xls_gazemap_pointer, "gaze replay int");
+  [xls_gazemap_pointer] = oct2xls (script_matrix_tgt, xls_gazemap_pointer, "gaze replay tgt");
+  [xls_gazemap_pointer] = oct2xls (script_line_int, xls_gazemap_pointer, "gaze frame int");
+  [xls_gazemap_pointer] = oct2xls (script_line_tgt, xls_gazemap_pointer, "gaze frame tgt");
 
   %close file pointer
-  [xls_heatmapMw] = xlsclose (xls_heatmapMw);
-  printf(".OK!"); toc();
+  [xls_gazemap_pointer] = xlsclose (xls_gazemap_pointer);
+  printf(".OK! "); toc();
 endfunction
 
 %==========================
@@ -802,51 +804,68 @@ if cfg_plot_angDisp_gaze_status == true
   plot_angDisp_colored_bg (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status);
 endif
 
-% Calculate a moving window heatmap from atoms proximity of gaze in time during the entire task, (TBD: ponderated with a decay in time)
-if cfg_gaze_heatmap_window == true
+% Calculate 3D gaze mapping using bigaussian for distance between gaze position and each atom on screen at each time, with normal (another gaussian) decay in time
+if cfg_gaze_map == true
   printf("Calculating transparency gradient for replay animation (may take a while):\n");tic();
   %declaring variables
-  heatmap_mw_int = heatmap_mw_tgt = zeros (atom_count,1); #(a,1)
-  distMw_tgt = distMw_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
-%  distMw_tgt_exp = distMw_int_exp = zeros (frame_count, atom_count); #(t,a)
-  exp_distMw_tgt = exp_distMw_int = zeros (frame_count, atom_count); #(t,a)
-  %gaussian formula: integral ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
+  gazemap_matrix_int = gazemap_matrix_tgt = zeros (atom_count,1); #(a,1)
+  gaze_dist_tgt = gaze_dist_int = zeros (frame_count,2,atom_count);  #(t,1:2,a)
+  exp_gaze_dist_tgt = exp_gaze_dist_int = zeros (frame_count, atom_count); #(t,a)
+%  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
+  %Gaussian formula remainder: integral of ( exp( - ( (x(t)-cx)^2 + (y(t)-cy)^2)/ (2*cfg_gaussian_wdt^2)) dt)
 
+  % Compute matrix of euclidian distance (gaze_dist_tgt and gaze_dist_int) between gaze and atom, for all atoms in all time frames.
   for a=1 : atom_count
     for t=1 : frame_count
-%      distMw_tgt(t,1:2,a) = [ ( atom_tgt_px(a,1)   - gaze_px(t,1) ).^2 , ( atom_tgt_px(a,2)   - gaze_px(t,2) ).^2 ];
-%      distMw_int(t,1:2,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 , ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
-      distMw_tgt(t,a) = [ ( atom_tgt_px(a,1)   - gaze_px(t,1) ).^2 + ( atom_tgt_px(a,2)   - gaze_px(t,2) ).^2 ];
-      distMw_int(t,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 + ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
+      gaze_dist_tgt(t,a) = [ ( atom_tgt_px(a,1)   - gaze_px(t,1) ).^2 + ( atom_tgt_px(a,2)   - gaze_px(t,2) ).^2 ];
+      gaze_dist_int(t,a) = [ ( atom_int_px(a,1,t) - gaze_px(t,1) ).^2 + ( atom_int_px(a,2,t) - gaze_px(t,2) ).^2 ];
     endfor
   endfor
 
-%  scatter (( atom_int_px(a,1,100) .- gaze_px(100,1) ),( atom_int_px(a,2,100) .- gaze_px(100,2) ) );
-
-%  for c=1:10
-  Q(:,1:4) = task_data(:,cfg_atom_matrix_quat_cols);
-  c=1;
   for a=1 : atom_count
-    % fill gaussian integral values
-    exp_distMw_tgt(:,a) = exp ( - distMw_tgt(:,a) / (2*cfg_gaussian_wdt^2) ) ;
-    exp_distMw_int(:,a) = exp ( - distMw_int(:,a) / (2*cfg_gaussian_wdt^2) ) ;
+    % fill bi-gaussian values for each atom (gaze distance gaussian)
+    exp_gaze_dist_tgt(:,a) = exp ( - gaze_dist_tgt(:,a) / (2*cfg_gaussian_wdt^2) ) ;
+    exp_gaze_dist_int(:,a) = exp ( - gaze_dist_int(:,a) / (2*cfg_gaussian_wdt^2) ) ;
   endfor
 
-  % for each atom, sums all values inside the moving window ("integrate") and register
-  for t=1 : frame_count %building transparency gradient table with moving window
-    %cfg_heatmap_mw_frame_length is the range in frames (0.1 second in 10Hz) for computing the relevance of each atom (spans from 's' to 't')
-    s = max([t-cfg_heatmap_mw_frame_length, 1]);
-    heatmap_mw_tgt(t,1:atom_count) = sum (exp_distMw_tgt(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeTgt) );
-    heatmap_mw_int(t,1:atom_count) = sum (exp_distMw_int(s:t,1:atom_count).*(gaze_status(s:t)==cfg_gaze_status_codeInt) );
+  #defining visual short-term memory gaussian
+  clear vstm_gaussian;
+  for t=1 : 4*cfg_gauss_time_sigma
+    vstm_gaussian(t) = exp ( - ( (4*cfg_gauss_time_sigma-t)^2 / (2*(cfg_gauss_time_sigma^2)) ) );
+  endfor
+%  plot(vstm_gaussian) % debug
+  vstm_len = length(vstm_gaussian);
+
+  % sum of gaze density/gaze mapping. For each atom, sums all values inside the bigaussian ("integrate"), apply a gaussian (past time/memory degradation gaussian) and register
+  for t=1 : frame_count
+    gazemap_sum_tgt = 0;
+    gazemap_sum_int = 0;
+    ti = 1 + max([t-4*cfg_gauss_time_sigma, 0]);
+    for frame=ti : t
+      gazemap_sum_tgt += ( exp_gaze_dist_tgt(frame,1:atom_count) .* vstm_gaussian(vstm_len-(t-frame)) );
+      gazemap_sum_int += ( exp_gaze_dist_int(frame,1:atom_count) .* vstm_gaussian(vstm_len-(t-frame)) );
+    endfor
+    gazemap_matrix_tgt(t,1:atom_count) = gazemap_sum_tgt;
+    gazemap_matrix_int(t,1:atom_count) = gazemap_sum_int;
   endfor
 
+  % gaze mapping of the entire process reduced to a single frame, with no decay in time.
+  gazemap_single_tgt(1:atom_count) = sum ( exp_gaze_dist_tgt(:,1:atom_count) );
+  gazemap_single_int(1:atom_count) = sum ( exp_gaze_dist_int(:,1:atom_count) );
 
+  % build the jmol console command list for target Object replay
   replay_tgt_jmol_script = repmat({"delay 0.1;"}, frame_count, 1);
   Q_tgt = cell2mat ( session_data(session_row,cfg_atom_matrix_tgt_cols) );
   replay_tgt_jmol_script{1} = ["moveto 0 QUATERNION {", num2str(Q_tgt(1:4)),"};"];
-  replay_transp_jmol_script_tgt = horzcat( replay_tgt_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_tgt) );
-  replay_transp_jmol_script_int = horzcat( replay_int_jmol_script, replay_transparency (frame_count, atom_count, heatmap_mw_int) );
+  jmol_script_gazemap_replay_tgt = horzcat( replay_tgt_jmol_script, replay_transparency (frame_count, atom_count, gazemap_matrix_tgt) );
+  % build the jmol console command list for interactive Object replay
+  jmol_script_gazemap_replay_int = horzcat( replay_int_jmol_script, replay_transparency (frame_count, atom_count, gazemap_matrix_int) );
 
-  writeOutput_heatmapMw (cfg_replay_animation_filename, replay_transp_jmol_script_int, replay_transp_jmol_script_tgt);
+  % build the jmol console command line for each object single frame
+  jmol_script_gazemap_single_tgt = horzcat( replay_tgt_jmol_script(1), replay_transparency (1, atom_count, gazemap_single_tgt) );
+  jmol_script_gazemap_single_int = horzcat( strcat("moveto 0.0 QUATERNION {", num2str(Q(length(Q),1:4)) , "};"), replay_transparency (1, atom_count, gazemap_single_int) );
+
+
+  writeOutput_gazemap (cfg_replay_animation_filename, jmol_script_gazemap_replay_tgt, jmol_script_gazemap_replay_int, jmol_script_gazemap_single_tgt, jmol_script_gazemap_single_int);
 endif
 
