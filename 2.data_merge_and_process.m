@@ -37,7 +37,7 @@ plot_angDisp_multi (angDisp6_safe, "S2, task: mrt", 15, [3,2,6])
 cfg_iRT_input = true; %slow process. Set true to read a new file
 cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 cfg_iRT_filter = true; %SHOULD ALWAYS BE 'true'
-cfg_plot_angDisp = true; % DRAW angular disparity plot (angular distance between target and interactive models, in degrees) (figure#1)
+cfg_plot_angDisp = true; % DRAW angular disparity plot (angular distance between target and interactive objects, in degrees) (figure#1)
 
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = true; %slow process. Set true to read a new file
@@ -60,7 +60,7 @@ cfg_write_merge_output = true; % WRITE output file from task_data
 cfg_replay_animation = true;
 cfg_replay_animation_filename = ["output_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
 
-% read .xyz file with atom data from the specified model in session_data
+% read .xyz file with atom data from the specified object in session_data
 cfg_xyz_input = true;
 cfg_xyz_col = 11; % index of the column to look for the modelName value in session_data
 cfg_plot_xyz = false; % DRAW 3D vertices of the array of atoms colored acording to atom_elem (figure#2). Similar to what Jmol does, for debugging purposes.
@@ -69,22 +69,22 @@ cfg_plot_xyz = false; % DRAW 3D vertices of the array of atoms colored acording 
 cfg_atom_matrix = true;
 cfg_atom_matrix_quat_cols = [3:6]; % column indexes of quaternions inside task_data array. Jmol quaternions order: [i j k r]
 cfg_atom_matrix_tgt_cols = [7:10]; % column indexes for the target quaternion values inside session_data ("tgt_i","tgt_j","tgt_k","tgt_theta")
-cfg_atom_matrix_tgt_plot = false; %2d scatter of the target model (figure#3)
-cfg_atom_matrix_plot = false; %2d scatter of the interactive model at a set time (figure#4)
+cfg_atom_matrix_tgt_plot = false; %2d scatter of the target object (figure#3)
+cfg_atom_matrix_plot = false; %2d scatter of the interactive object at a set time (figure#4)
 cfg_atom_matrix_plot_t = 1; %frame used in rotated cfg_atom_matrix_plot (figure#4)
 
 % compute gaze-canvas distances
 cfg_gaze_dist_matrix = true;
 cfg_gaze_cols = [11,12]; % column indexes of gaze x and y coordinates on screen. Should be in pixels, counting from top-left corner
 cfg_gaze_scrSize_cols = [12,13]; % column indexes of screenSize values from session_data (width and height respectively)
-cfg_gaze_cvsTgt_cols = [14,15,16,17]; % column indexes of target model canvas positions from session_data (in order: top, right, bottom, left)
-cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive model canvas positions from session_data (in order: top, right, bottom, left)
+cfg_gaze_cvsTgt_cols = [14,15,16,17]; % column indexes of target object canvas positions from session_data (in order: top, right, bottom, left)
+cfg_gaze_cvsInt_cols = [18,19,20,21]; % column indexes of interactive object canvas positions from session_data (in order: top, right, bottom, left)
 cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per angstrom (atomic distance unit in jmol) in session_data.
 
 % compute the status of the gaze in respect to where it is located: inside target canvas, interactive canvas, or neither
 cfg_gaze_status_array = true;
-cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target model canvas
-cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive model canvas
+cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target object canvas
+cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive object canvas
 cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line color based in the registered gaze_status
 
 % compute temporal transparency heatmap in 3D
@@ -354,22 +354,25 @@ function plot_angDisp_multi (angDisp, plot_angDisp_title, fig_n, sub_p)
     set(gca, 'ytick', 0:45:180);
 endfunction
 
-% function to plot multiple angular disparity graphs with more data
-function plot_angDisp_multi_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series, fig_n, sub_p)
+% function to plot angular disparity graphs with more data
+function plot_angDisp_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series)
+  figure;
+
   frame_count = size(angDisp,1);
   x_duration = 0.1*(1:frame_count);
-  plot_angDisp_title = ["Resolugram - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+  plot_angDisp_title = ["Angular diaparity - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
 
-  figure (fig_n);
-    % subplot: rows, columns, index of selected plot
-    subplot (sub_p(1),sub_p(2),sub_p(3));
-    ax = plotyy (x_duration , angDisp, x_duration, extra_series);
-    title(plot_angDisp_title);
-    xlabel("Task duration");
-    ylabel (ax(1), "Resolugram - Distance in degrees");
-    ylabel (ax(2), 'Pupil Diameter');
-    axis (ax(1), [0,Inf, 0,180] );
-    axis (ax(2), 'autoy' ); % auto specifies the y-axis length
+  % subplot: rows, columns, index of selected plot
+  #subplot (sub_p(1),sub_p(2),sub_p(3));
+  ax = plotyy (x_duration , angDisp, x_duration, extra_series);
+  title(plot_angDisp_title);
+  xlabel("Task duration");
+  ylabel (ax(1), "Angular disparity in degrees");
+  ylabel (ax(2), 'Pupil Diameter');
+  axis (ax(1), [0,Inf, 0,180] );
+  axis (ax(2), 'autoy' ); % auto specifies the y-axis length
+
+  %sample call: plot_angDisp_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
 endfunction
 
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
@@ -781,7 +784,7 @@ if cfg_atom_matrix == true
     atom_cor = generate_color_vector (atom_count, atom_xyz, atom_elem);
     figure (3);
     scatter (atomInt_xyzRot(:,1,cfg_atom_matrix_plot_t), atomInt_xyzRot(:,2,cfg_atom_matrix_plot_t), atom_cor(:,1), atom_cor(:,2:4));
-    title ( strcat ("2D Scatter of vertices in interactive model at time=", num2str(cfg_atom_matrix_plot_t) ) );
+    title ( strcat ("2D Scatter of vertices from interactive object at time=", num2str(cfg_atom_matrix_plot_t) ) );
     axis ("equal");
     xlabel("x"); ylabel("y");
   endif
