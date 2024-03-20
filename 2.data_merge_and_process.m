@@ -18,7 +18,7 @@ clear -exclusive *_data *_safe;
 % set 'true' to let the script calculate (or recalculate/read/write again) the described values
 
 % obtain needed values from iRT data. Mandatory
-cfg_iRT_sessionID = 1682707472090; %session ID of the desired task
+cfg_iRT_sessionID = "1682707472090"; %session ID of the desired task
 cfg_iRT_taskID = "bolaBastao_c"; %task ID of the desired task. Avoid using unsupported symbols for file names ( /\?|: )
 %sample sessionIDs:    1682699553789    1682707472090    (sbj me)
 %sample taskIDs:    bolaBastao_c    poligonFill    mrt
@@ -35,13 +35,13 @@ plot_angDisp_multi (angDisp6_safe, "S2, task: mrt", 15, [3,2,6])
 % 1.Temporal Data Input
 % read iRT .xlsx input file
 cfg_iRT_input = true; %slow process. Set true to read a new file
-cfg_iRT_input_filename = "iRT_data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
+cfg_iRT_input_filename = "iRT data.xlsx"; %name of the iRT sheets file unpackaged by unpacking_sheets.m
 cfg_iRT_filter = true; %SHOULD ALWAYS BE 'true'
 cfg_plot_angDisp = true; % DRAW angular disparity plot (angular distance between target and interactive objects, in degrees) (figure#1)
 
 % read eyeTracking .xlsx input file
 cfg_eyeT_input = true; %slow process. Set true to read a new file
-cfg_eyeT_input_filename = "raw_eyeT_1682707472090.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
+cfg_eyeT_input_filename = "raw eyeT 1682707472090.xlsx"; %name of the input file (.xlsx, numbers only, no commas for decimals)
 
 % fix missing pupil data by linear interpolation (best to always leave on with a new data array)
 cfg_interpolate_missingVal = true;
@@ -58,7 +58,7 @@ cfg_write_merge_output = true; % WRITE output file from task_data
 % 3.Data Processing
 % compute and write file with table of jmol commands for the replay animation
 cfg_replay_animation = true;
-cfg_replay_animation_filename = ["output_jmol_console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
+cfg_replay_animation_filename = ["output jmol console ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID,".xlsx"];
 
 % read .xyz file with atom data from the specified object in session_data
 cfg_xyz_input = true;
@@ -85,7 +85,8 @@ cfg_gaze_pxAngs_rate_col = [6]; %column index of pixels (screen distance) per an
 cfg_gaze_status_array = true;
 cfg_gaze_status_codeTgt = 1; %condition in gaze_status, meaning that gaze was within Target object canvas
 cfg_gaze_status_codeInt = 2; %condition in gaze_status, meaning that gaze was within Interactive object canvas
-cfg_plot_angDisp_gaze_status = true; %plot the angular disparity with the line color based in the registered gaze_status
+cfg_plot_angDisp_gaze_status = true; %plot angular disparity data with backgroud color based on the registered gaze_status
+cfg_plot_angDisp_yy_pupil = true; %plot angular disparity data with pupil diameter data.
 
 % compute temporal transparency heatmap in 3D
 cfg_gaze_map = true;
@@ -95,10 +96,43 @@ cfg_gauss_wdt_time = 40; % gaussian width (sigma) for decay over time, in frames
 %{
    #=========================================#
    # DON'T MODIFY ANYTHING BELLOW THIS LINE! #
-   #          (or do modify it if)           #
-   #      (you know what you are doing)      #
+   #       (  or do modify it if you )       #
+   #       ( know what you are doing )       #
    #=========================================#
 %}
+
+%USER INPUT
+%session ID
+prpt_sessionID = inputdlg ("Insert session ID value. Ex: 1682699553789, 1682707472090", "Input Session ID");
+if (isempty ( char (prpt_sessionID) ) == 1 )
+  printf ( cstrcat ("Blank input, using default value: '",cfg_iRT_sessionID,"'.\n"));
+else
+  cfg_iRT_sessionID = char(prpt_sessionID);
+endif
+
+%task ID
+prpt_taskID = inputdlg ("Insert task ID value. Ex: bolaBastao\_c, poligonFill, mrt", "Input Task ID");
+if (isempty ( char (prpt_taskID) ) == 1 )
+  printf ( cstrcat ("Blank input, using default value: '",cfg_iRT_taskID,"'.\n"));
+else
+  cfg_iRT_taskID = char(prpt_taskID);
+endif
+
+%iRT data filename
+prpt_iRT_fname = inputdlg ("Insert iRT unpackaged data filename. Ex: iRT data.xlsx", "Input iRT unpackaged data filename");
+if (isempty ( char (prpt_iRT_fname) ) == 1 )
+  printf ( cstrcat ("Blank input, using default value: '",cfg_iRT_input_filename,"'.\n"));
+else
+  cfg_iRT_input_filename = char(prpt_iRT_fname);
+endif
+
+%eye tracker data filename
+prpt_eyeT_fname = inputdlg ("Insert eye tracker data filename. Ex: raw eyeT 1682707472090.xlsx", "Input eye tracker data filename");
+if (isempty ( char (prpt_eyeT_fname ) ) == 1 )
+  printf ( cstrcat ("Blank input, using default value: '",cfg_eyeT_input_filename,"'.\n"));
+else
+  cfg_eyeT_input_filename = char(prpt_eyeT_fname );
+endif
 
 %FUNCTIONS
 % recognize input file format and reads eyeTracker data (eyeT_data)
@@ -355,12 +389,12 @@ function plot_angDisp_multi (angDisp, plot_angDisp_title, fig_n, sub_p)
 endfunction
 
 % function to plot angular disparity graphs with more data
-function plot_angDisp_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series)
+function plot_angDisp_yy_pupil (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_series)
   figure;
 
   frame_count = size(angDisp,1);
   x_duration = 0.1*(1:frame_count);
-  plot_angDisp_title = ["Angular diaparity - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
+  plot_angDisp_title = ["Angular disparity - ",num2str(cfg_iRT_sessionID)," ",cfg_iRT_taskID," + pupil data"];
 
   % subplot: rows, columns, index of selected plot
   #subplot (sub_p(1),sub_p(2),sub_p(3));
@@ -372,7 +406,7 @@ function plot_angDisp_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, extra_seri
   axis (ax(1), [0,Inf, 0,180] );
   axis (ax(2), 'autoy' ); % auto specifies the y-axis length
 
-  %sample call: plot_angDisp_yy (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
+  %sample call: plot_angDisp_yy_pupil (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
 endfunction
 
 % merge eyeT_data into iRT_data based on the nearest time values by nearest neighbours method
@@ -709,7 +743,8 @@ if cfg_data_merge == true
 
   % WRITE output file
   if cfg_write_merge_output == true
-    writeOutput_merged (["output_merge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"], merged_header_data, task_data, session_data, session_row);
+    writeOutput_merge_fname = ["output merge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"];
+    writeOutput_merged (["output merge ", num2str(cfg_iRT_sessionID), " ", cfg_iRT_taskID, ".xlsx"], merged_header_data, task_data, session_data, session_row);
   endif
 endif
 %------------------
@@ -815,6 +850,10 @@ endif
 if cfg_plot_angDisp_gaze_status == true
   plot_angDisp_colored_bg (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, gaze_status);
 endif
+% plot angular disparity with pupil diameter data
+if cfg_plot_angDisp_yy_pupil == true
+  plot_angDisp_yy_pupil (angDisp, cfg_iRT_sessionID, cfg_iRT_taskID, (task_data(:,13)+task_data(:,14))/2);
+endif
 
 % Calculate 3D gaze mapping using bigaussian for distance between gaze position and each atom on screen at each time, with normal (another gaussian) decay in time
 if cfg_gaze_map == true
@@ -880,4 +919,8 @@ if cfg_gaze_map == true
 
   writeOutput_gazemap (cfg_replay_animation_filename, jmol_script_gazemap_replay_tgt, jmol_script_gazemap_replay_int, jmol_script_gazemap_single_tgt, jmol_script_gazemap_single_int);
 endif
-
+endtext = ["Process complete! Merged data from '", cfg_iRT_input_filename, "' and '", cfg_eyeT_input_filename,"'."];
+if (cfg_write_merge_output == true)
+  endtext = [endtext, "\nMerged data was stored inside '", writeOutput_merge_fname, "'."];
+endif
+helpdlg (endtext);
